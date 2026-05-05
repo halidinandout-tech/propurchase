@@ -152,13 +152,13 @@
 
     /* ── Summary Matrix ── */
     .matrix-wrap { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-bottom:1.75rem; }
-    .matrix-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:1.1rem 1.25rem; }
-    .matrix-title { font-size:.65rem; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.08em; margin-bottom:.75rem; }
-    .matrix-rows  { display:flex; flex-direction:column; gap:4px; }
-    .matrix-row   { display:flex; justify-content:space-between; align-items:center; padding:.3rem .5rem; border-radius:6px; background:var(--surface2); }
+    .matrix-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:1.1rem 1.25rem; box-shadow:0 2px 12px rgba(0,0,0,.2); }
+    .matrix-title { font-size:.6rem; font-weight:800; color:var(--text3); text-transform:uppercase; letter-spacing:.1em; margin-bottom:.75rem; }
+    .matrix-rows  { display:flex; flex-direction:column; gap:5px; }
+    .matrix-row   { display:flex; justify-content:space-between; align-items:center; padding:.35rem .6rem; border-radius:7px; background:var(--surface2); border:1px solid var(--border); }
     .matrix-name  { font-size:.8rem; color:var(--text2); }
-    .matrix-count { font-size:.8rem; font-weight:700; color:var(--text); min-width:24px; text-align:right; }
-    .matrix-bar   { height:3px; background:var(--border2); border-radius:2px; margin-top:3px; overflow:hidden; }
+    .matrix-count { font-size:.85rem; font-weight:800; color:var(--text); min-width:24px; text-align:right; }
+    .matrix-bar   { height:3px; background:var(--border2); border-radius:2px; margin-top:4px; overflow:hidden; }
     .matrix-bar-fill { height:100%; border-radius:2px; }
     .cb-yes { color:var(--success); font-weight:700; }
     .cb-no  { color:var(--text3); }
@@ -172,42 +172,53 @@
     }
     .saving-flash { opacity:.5; transition:opacity .2s; }
 
-    /* ── Buying Table ── */
-    .buying-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--surface); }
+    /* ── Buying / Transport Table ── */
+    .buying-wrap {
+      overflow-x:auto; border:1px solid var(--border); border-radius:12px;
+      background:var(--surface); box-shadow:0 4px 24px rgba(0,0,0,.35);
+    }
     .buying-table { border-collapse:collapse; white-space:nowrap; font-size:.75rem; min-width:100%; }
     .buying-table th {
-      position:sticky; top:0; z-index:2; background:var(--surface2);
-      color:var(--text3); font-size:.62rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
-      padding:.6rem .75rem; border-bottom:2px solid var(--border2);
-      border-right:1px solid var(--border); white-space:nowrap; text-align:left;
+      position:sticky; top:0; z-index:2;
+      color:var(--text3); font-size:.6rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em;
+      padding:.65rem .85rem; border-bottom:1px solid var(--border2);
+      border-right:1px solid rgba(255,255,255,.04); white-space:nowrap; text-align:left;
     }
     .buying-table td {
-      padding:.5rem .75rem; border-bottom:1px solid var(--border);
-      border-right:1px solid var(--border); color:var(--text2); vertical-align:middle;
-      max-width:160px; overflow:hidden; text-overflow:ellipsis;
+      padding:.55rem .85rem; border-bottom:1px solid rgba(255,255,255,.04);
+      border-right:1px solid rgba(255,255,255,.04); color:var(--text2); vertical-align:middle;
+      max-width:160px; overflow:hidden; text-overflow:ellipsis; transition:background .1s;
     }
-    .buying-table tbody tr:hover td { background:var(--surface2); cursor:pointer; }
+    .buying-table tbody tr:nth-child(even) td { background:rgba(255,255,255,.015); }
+    .buying-table tbody tr:hover td { background:rgba(99,102,241,.08) !important; }
     .buying-table tbody tr:last-child td { border-bottom:none; }
     /* sticky first + last col */
     .buying-table th:first-child,
     .buying-table td:first-child { position:sticky; left:0; z-index:1; background:var(--surface); border-right:2px solid var(--border2); }
-    .buying-table th:first-child { z-index:3; background:var(--surface2); }
+    .buying-table th:first-child { z-index:3; }
     .buying-table th:last-child,
     .buying-table td:last-child  { position:sticky; right:0; z-index:1; background:var(--surface); border-left:2px solid var(--border2); }
-    .buying-table th:last-child  { z-index:3; background:var(--surface2); }
-    /* group header colours */
-    .th-basic    { background:#12121c !important; }
-    .th-purchase { background:#0f1a18 !important; color:#6ee7b7 !important; }
-    .th-market   { background:#0f1220 !important; color:#a5b4fc !important; }
-    .th-expenses { background:#1a1210 !important; color:#fcd34d !important; }
-    .th-summary  { background:#130f1a !important; color:#c4b5fd !important; }
-    .th-status   { background:#10141a !important; color:#7dd3fc !important; }
-    .buying-search { padding:.5rem .75rem; background:var(--surface2); border:1px solid var(--border2); border-radius:8px; color:var(--text); font-size:.875rem; font-family:inherit; outline:none; width:260px; }
-    .buying-search:focus { border-color:var(--accent); }
-    .col-vin  { font-weight:600; color:var(--text) !important; font-family:monospace; font-size:.72rem; }
-    .col-make { font-weight:600; color:var(--text) !important; }
-    .col-num  { text-align:right; }
-    .col-money { text-align:right; color:var(--success) !important; font-weight:500; }
+    .buying-table th:last-child  { z-index:3; }
+    .buying-table tbody tr:nth-child(even) td:first-child,
+    .buying-table tbody tr:nth-child(even) td:last-child { background:rgba(255,255,255,.015); }
+    .buying-table tbody tr:hover td:first-child,
+    .buying-table tbody tr:hover td:last-child { background:rgba(99,102,241,.08) !important; }
+    /* group header colours — richer */
+    .th-basic    { background:#13131e !important; }
+    .th-purchase { background:#0d1f1a !important; color:#6ee7b7 !important; border-top:2px solid rgba(110,231,183,.3) !important; }
+    .th-market   { background:#0d1228 !important; color:#a5b4fc !important; border-top:2px solid rgba(165,180,252,.3) !important; }
+    .th-expenses { background:#201510 !important; color:#fcd34d !important; border-top:2px solid rgba(252,211,77,.3)  !important; }
+    .th-summary  { background:#19102a !important; color:#e9d5ff !important; border-top:2px solid rgba(233,213,255,.3) !important; }
+    .th-status   { background:#0c1622 !important; color:#7dd3fc !important; border-top:2px solid rgba(125,211,252,.3) !important; }
+    .buying-search {
+      padding:.5rem .85rem; background:var(--surface2); border:1px solid var(--border2);
+      border-radius:8px; color:var(--text); font-size:.875rem; font-family:inherit; outline:none; width:260px;
+    }
+    .buying-search:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(99,102,241,.15); }
+    .col-vin   { font-weight:600; color:var(--accent2) !important; font-family:monospace; font-size:.72rem; letter-spacing:.03em; }
+    .col-make  { font-weight:600; color:var(--text) !important; }
+    .col-num   { text-align:right; }
+    .col-money { text-align:right; color:#34d399 !important; font-weight:600; font-variant-numeric:tabular-nums; }
 
     /* Spinner */
     .spinner-wrap { display:flex; justify-content:center; align-items:center; padding:4rem; }
