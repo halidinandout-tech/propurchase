@@ -352,8 +352,9 @@ async function refreshData() {
 ═══════════════════════════════════════════ */
 const route = () => location.hash.slice(1) || 'dashboard';
 const go    = h  => { location.hash = h; };
-let activeFilter = '';
-let buyingSearch = '';
+let activeFilter  = '';
+let buyingSearch  = '';
+let buyingSubTab  = 'list';
 
 window.addEventListener('hashchange', draw);
 
@@ -383,7 +384,6 @@ function loadPage(r) {
   else if (r.startsWith('transportation/')) pageTransportForm(main, r.slice(15));
   else if (r==='transportation')         pageTransportation(main);
   else if (r==='vehicles')               pageVehicles(main);
-  else if (r==='categories')            pageCategories(main);
   else if (r==='reports')               pageReports(main);
   else                                   pageDashboard(main);
 }
@@ -432,7 +432,6 @@ function tplShell(r) {
     { h:'buying',        label:'Buying'             },
     { h:'transportation',label:'Transportation'     },
     { h:'vehicles',      label:'Vehicles'           },
-    { h:'categories',   label:'Edit Categories'    },
     { h:'reports',       label:'Reports'            },
   ];
   const active = h => r===h||(h==='requests'&&r.startsWith('requests'))||(h==='buying'&&r.startsWith('buying'))||(h==='transportation'&&r.startsWith('transportation'));
@@ -840,6 +839,19 @@ async function editCell(td, car, key, type, opts, col='buying') {
 }
 
 function pageBuying(el) {
+  // Sub-tab: delegate to categories if needed
+  const tabStrip = `<div class="trans-tabs" style="margin-bottom:1.5rem;">
+    <button class="trans-tab${buyingSubTab==='list'?' active':''}" data-subtab="list">📋 Buying List</button>
+    <button class="trans-tab${buyingSubTab==='categories'?' active':''}" data-subtab="categories">🏷 Edit Categories</button>
+  </div>`;
+
+  if (buyingSubTab === 'categories') {
+    el.innerHTML = tabStrip + '<div id="cat-content"></div>';
+    el.querySelectorAll('.trans-tab').forEach(b => b.addEventListener('click', () => { buyingSubTab = b.dataset.subtab; pageBuying(el); }));
+    pageCategories(document.getElementById('cat-content'));
+    return;
+  }
+
   const search = buyingSearch.toLowerCase();
   const all    = S.cache.buying;
   const rows   = (search ? all.filter(c =>
@@ -874,6 +886,7 @@ function pageBuying(el) {
   const maxCg = Math.max(...buyerRows.map(([,v])=>v.cargurusN>0?v.cargurus/v.cargurusN:0), 1);
 
   el.innerHTML = `
+    ${tabStrip}
     <div class="list-header">
       <div><h1>Buying</h1><p class="subtitle">${all.length} record${all.length!==1?'s':''}</p></div>
       <div style="display:flex;gap:.75rem;align-items:center;">
@@ -978,6 +991,7 @@ function pageBuying(el) {
     </div>
     <button class="btn-ghost" id="add-row-btn" style="margin-top:.75rem;width:100%;border-style:dashed;color:var(--accent2);font-size:.85rem;">+ Add Row</button>`;
 
+  el.querySelectorAll('.trans-tab[data-subtab]').forEach(b => b.addEventListener('click', () => { buyingSubTab = b.dataset.subtab; pageBuying(el); }));
   $('buying-search').addEventListener('input', e=>{ buyingSearch=e.target.value; pageBuying(el); });
   el.querySelector('.buying-table tbody').addEventListener('click', e=>{
     const td = e.target.closest('.editable-cell');
