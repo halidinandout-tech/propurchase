@@ -159,6 +159,15 @@
     .matrix-bar-fill { height:100%; border-radius:2px; }
     .cb-yes { color:var(--success); font-weight:700; }
     .cb-no  { color:var(--text3); }
+    .editable-cell { cursor:cell; }
+    .editable-cell:hover:not([data-editing]) { background:rgba(99,102,241,.06) !important; outline:1px solid var(--border2); }
+    .editable-cell[data-editing] { background:rgba(99,102,241,.1) !important; padding:0 !important; }
+    .cell-input {
+      width:100%; min-width:80px; background:var(--surface2);
+      border:1.5px solid var(--accent); border-radius:4px; color:var(--text);
+      padding:4px 6px; font-size:.75rem; font-family:inherit; outline:none; display:block;
+    }
+    .saving-flash { opacity:.5; transition:opacity .2s; }
 
     /* ── Buying Table ── */
     .buying-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--surface); }
@@ -624,6 +633,82 @@ function matrixCard(title, data, color) {
   </div>`;
 }
 
+function setCellContent(td, car, key, type) {
+  delete td.dataset.editing;
+  const v = car[key];
+  if (type === 'checkbox') {
+    td.innerHTML = (v === 'true' || v === true) ? '<span class="cb-yes">✓</span>' : '<span class="cb-no">—</span>';
+  } else if (key === 'status') {
+    td.innerHTML = v ? badge(v) : '';
+  } else if (MONEY_KEYS.has(key)) {
+    td.textContent = v ? fmt$(v) : '';
+  } else {
+    td.textContent = v ?? '';
+  }
+}
+
+async function editCell(td, car, key, type, opts) {
+  if (td.dataset.editing) return;
+  td.dataset.editing = '1';
+  const orig = car[key];
+
+  if (type === 'checkbox') {
+    const newVal = String(!(orig === 'true' || orig === true));
+    car[key] = newVal;
+    setCellContent(td, car, key, type);
+    td.classList.add('saving-flash');
+    try { if (!await ensureToken()) throw 0; await fsPatch('buying', car.id, {[key]: newVal}); saveS(); }
+    catch { car[key] = orig; setCellContent(td, car, key, type); }
+    setTimeout(() => td.classList.remove('saving-flash'), 400);
+    return;
+  }
+
+  let inp;
+  if (type === 'select' || opts) {
+    inp = document.createElement('select');
+    (opts || []).forEach(o => {
+      const op = document.createElement('option');
+      op.value = o; op.textContent = o || '— Select —';
+      if (o === (orig ?? '')) op.selected = true;
+      inp.appendChild(op);
+    });
+  } else {
+    inp = document.createElement('input');
+    inp.type = type === 'number' ? 'number' : type === 'date' ? 'date' : 'text';
+    inp.value = orig ?? '';
+    if (type === 'number') { inp.step = '0.01'; inp.min = '0'; }
+  }
+  inp.className = 'cell-input';
+  td.innerHTML = '';
+  td.appendChild(inp);
+  inp.focus();
+  if (inp.tagName === 'INPUT' && inp.type !== 'date') inp.select();
+
+  let saved = false;
+  const save = async () => {
+    if (saved) return; saved = true;
+    const newVal = inp.value;
+    car[key] = newVal;
+    setCellContent(td, car, key, type);
+    if (String(newVal) !== String(orig ?? '')) {
+      td.classList.add('saving-flash');
+      try {
+        if (!await ensureToken()) throw 0;
+        await fsPatch('buying', car.id, {[key]: type === 'number' && newVal !== '' ? Number(newVal) : newVal});
+        saveS();
+      } catch { car[key] = orig; setCellContent(td, car, key, type); }
+      setTimeout(() => td.classList.remove('saving-flash'), 400);
+    }
+  };
+
+  inp.addEventListener('blur', save);
+  if (type === 'select' || opts) inp.addEventListener('change', save);
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { e.preventDefault(); save(); }
+    if (e.key === 'Escape') { saved = true; car[key] = orig; setCellContent(td, car, key, type); }
+  });
+}
+
 function pageBuying(el) {
   const search = buyingSearch.toLowerCase();
   const all    = S.cache.buying;
@@ -661,17 +746,20 @@ function pageBuying(el) {
         <tbody>
           ${!rows.length?`<tr><td colspan="${BUYING_COLS.length+2}" class="empty">No records found.</td></tr>`:
             rows.map((c,i)=>`
-              <tr data-go="buying/${c.id}">
+              <tr>
                 <td style="color:var(--text3);font-size:.7rem;">${i+1}</td>
                 ${BUYING_COLS.map(([k,l,g,t])=>{
-                  if (k==='vin')    return `<td class="col-vin">${esc(c[k]??'')}</td>`;
-                  if (k==='make'||k==='model') return `<td class="col-make">${esc(c[k]??'')}</td>`;
-                  if (k==='status') return `<td>${c[k]?badge(c[k]):''}</td>`;
-                  if (t==='checkbox') return `<td style="text-align:center;">${c[k]==='true'?'<span class="cb-yes">✓</span>':'<span class="cb-no">—</span>'}</td>`;
-                  if (MONEY_KEYS.has(k)) return `<td class="col-money">${c[k]?fmt$(c[k]):''}</td>`;
-                  return `<td>${esc(c[k]??'')}</td>`;
+                  const optsAttr = DROPDOWN_OPTS[k] ? `data-opts="${esc(JSON.stringify(DROPDOWN_OPTS[k]))}"` : '';
+                  const d = `data-id="${c.id}" data-key="${k}" data-type="${t}" ${optsAttr}`;
+                  if (k==='vin')    return `<td class="editable-cell col-vin" ${d}>${esc(c[k]??'')}</td>`;
+                  if (k==='make'||k==='model') return `<td class="editable-cell col-make" ${d}>${esc(c[k]??'')}</td>`;
+                  if (k==='status') return `<td class="editable-cell" ${d}>${c[k]?badge(c[k]):''}</td>`;
+                  if (t==='checkbox') return `<td class="editable-cell" ${d} style="text-align:center;">${c[k]==='true'?'<span class="cb-yes">✓</span>':'<span class="cb-no">—</span>'}</td>`;
+                  if (MONEY_KEYS.has(k)) return `<td class="editable-cell col-money" ${d}>${c[k]?fmt$(c[k]):''}</td>`;
+                  return `<td class="editable-cell" ${d}>${esc(c[k]??'')}</td>`;
                 }).join('')}
-                <td onclick="event.stopPropagation();" style="white-space:nowrap;">
+                <td style="white-space:nowrap;">
+                  <a href="#buying/${c.id}" style="font-size:.75rem;color:var(--accent2);margin-right:.5rem;text-decoration:none;" title="Open full form">✏</a>
                   <button class="btn-danger" data-del="${c.id}">Delete</button>
                 </td>
               </tr>`).join('')}
@@ -680,7 +768,13 @@ function pageBuying(el) {
     </div>`;
 
   $('buying-search').addEventListener('input', e=>{ buyingSearch=e.target.value; pageBuying(el); });
-  el.querySelectorAll('[data-go]').forEach(r=>r.addEventListener('click',()=>go(r.dataset.go)));
+  el.querySelector('.buying-table tbody').addEventListener('click', e=>{
+    const td = e.target.closest('.editable-cell');
+    if (!td || td.dataset.editing) return;
+    const car = S.cache.buying.find(c=>c.id===td.dataset.id);
+    if (!car) return;
+    editCell(td, car, td.dataset.key, td.dataset.type, td.dataset.opts ? JSON.parse(td.dataset.opts) : null);
+  });
   el.querySelectorAll('[data-del]').forEach(btn=>btn.addEventListener('click', async ()=>{
     if (!confirm('Delete this record?')) return;
     if (!await ensureToken()) return;
