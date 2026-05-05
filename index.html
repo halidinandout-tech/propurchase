@@ -806,9 +806,13 @@ async function editCell(td, car, key, type, opts, col='buying') {
 function pageBuying(el) {
   const search = buyingSearch.toLowerCase();
   const all    = S.cache.buying;
-  const rows   = search ? all.filter(c =>
+  const rows   = (search ? all.filter(c =>
     [c.vin,c.make,c.model,c.year,c.buyer,c.source].some(v=>(v||'').toLowerCase().includes(search))
-  ) : all;
+  ) : all).slice().sort((a,b)=>{
+    const da = a.purchasedDate || a.date || '';
+    const db = b.purchasedDate || b.date || '';
+    return da < db ? -1 : da > db ? 1 : 0;
+  });
 
   // Summary counts
   const byBuyer = all.reduce((a,c)=>{ if(c.buyer) a[c.buyer]=(a[c.buyer]||0)+1; return a; },{});
