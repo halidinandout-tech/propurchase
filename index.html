@@ -225,8 +225,10 @@
     .col-vin   { font-weight:600; color:var(--accent2) !important; font-family:monospace; font-size:.72rem; letter-spacing:.03em; }
     .col-make  { font-weight:600; color:var(--text) !important; }
     .col-num   { text-align:right; }
-    .col-money { text-align:right; color:#34d399 !important; font-weight:600; font-variant-numeric:tabular-nums; }
-    .col-cost  { text-align:right; color:#f87171 !important; font-weight:600; font-variant-numeric:tabular-nums; }
+    .col-money      { text-align:right; color:#34d399 !important; font-weight:600; font-variant-numeric:tabular-nums; }
+    .col-cost       { text-align:right; color:#f87171 !important; font-weight:600; font-variant-numeric:tabular-nums; }
+    .col-val-light  { text-align:right; color:#7dd3fc !important; font-weight:600; font-variant-numeric:tabular-nums; }
+    .col-val-dark   { text-align:right; color:#2563eb !important; font-weight:600; font-variant-numeric:tabular-nums; }
 
     /* Spinner */
     .spinner-wrap { display:flex; justify-content:center; align-items:center; padding:4rem; }
@@ -641,7 +643,9 @@ const BUYING_COLS = [
 
 const GROUP_CLASS = { basic:'th-basic', purchase:'th-purchase', market:'th-market', expenses:'th-expenses', summary:'th-summary', status:'th-status' };
 const MONEY_KEYS  = new Set(['buyingPrice','buyFee','otherBuyingExpenses','totalPurchase','carfaxValue','mCarfaxValue','cargurusValue','mCargurusValue','transport','auctionFee','bodyMasraf','digerMasraf','bodyBeklenenMasraf','digerBeklenenMasraf','totalBuyingPrice','totalAll','carfax','cargurus','price','cost']);
-const COST_KEYS   = new Set(['transport','auctionFee','bodyMasraf','digerMasraf','bodyBeklenenMasraf','digerBeklenenMasraf']);
+const COST_KEYS      = new Set(['transport','auctionFee','bodyMasraf','digerMasraf','bodyBeklenenMasraf','digerBeklenenMasraf']);
+const VAL_LIGHT_KEYS = new Set(['carfaxValue','cargurusValue']);
+const VAL_DARK_KEYS  = new Set(['mCarfaxValue','mCargurusValue']);
 const STATUS_OPTS = ['Available','Sold','In Transit','On Hold','Arbitration','Floored'];
 const DROPDOWN_OPTS = {
   floorPlan:      ['', 'Cash','Arshad','Online','Frank','ACV'],
@@ -772,8 +776,13 @@ function setCellContent(td, car, key, type) {
   } else if (key === 'status') {
     td.innerHTML = v ? badge(v) : '';
   } else if (COST_KEYS.has(key)) {
-    td.className = td.className.replace('col-money','col-cost');
-    if (!td.className.includes('col-cost')) td.classList.add('col-cost');
+    td.classList.add('col-cost');
+    td.textContent = v ? fmt$(v) : '';
+  } else if (VAL_LIGHT_KEYS.has(key)) {
+    td.classList.add('col-val-light');
+    td.textContent = v ? fmt$(v) : '';
+  } else if (VAL_DARK_KEYS.has(key)) {
+    td.classList.add('col-val-dark');
     td.textContent = v ? fmt$(v) : '';
   } else if (MONEY_KEYS.has(key)) {
     td.textContent = v ? fmt$(v) : '';
@@ -983,8 +992,10 @@ function pageBuying(el) {
                   if (k==='make'||k==='model') return `<td class="editable-cell col-make" ${d}>${esc(c[k]??'')}</td>`;
                   if (k==='status') return `<td class="editable-cell" ${d}>${c[k]?badge(c[k]):''}</td>`;
                   if (t==='checkbox') return `<td class="editable-cell" ${d} style="text-align:center;">${c[k]==='true'?'<span class="cb-yes">✓</span>':'<span class="cb-no">—</span>'}</td>`;
-                  if (COST_KEYS.has(k))  return `<td class="editable-cell col-cost"  ${d}>${c[k]?fmt$(c[k]):''}</td>`;
-                  if (MONEY_KEYS.has(k)) return `<td class="editable-cell col-money" ${d}>${c[k]?fmt$(c[k]):''}</td>`;
+                  if (COST_KEYS.has(k))      return `<td class="editable-cell col-cost"      ${d}>${c[k]?fmt$(c[k]):''}</td>`;
+                  if (VAL_LIGHT_KEYS.has(k)) return `<td class="editable-cell col-val-light" ${d}>${c[k]?fmt$(c[k]):''}</td>`;
+                  if (VAL_DARK_KEYS.has(k))  return `<td class="editable-cell col-val-dark"  ${d}>${c[k]?fmt$(c[k]):''}</td>`;
+                  if (MONEY_KEYS.has(k))     return `<td class="editable-cell col-money"     ${d}>${c[k]?fmt$(c[k]):''}</td>`;
                   return `<td class="editable-cell" ${d}>${esc(c[k]??'')}</td>`;
                 }).join('')}
                 <td style="white-space:nowrap;text-align:center;">
