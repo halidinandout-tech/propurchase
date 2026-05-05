@@ -243,10 +243,10 @@ const REFRESH_URL= `https://securetoken.googleapis.com/v1/token?key=${API_KEY}`;
 /* ═══════════════════════════════════════════
    STATE
 ═══════════════════════════════════════════ */
-let S = { user: null, cache: { requests: [], vehicles: [], buying: [], transport: [] } };
-function loadS()  { try { const d=localStorage.getItem('pp'); if(d) S=JSON.parse(d); if(!S.cache.buying) S.cache.buying=[]; if(!S.cache.transport) S.cache.transport=[]; } catch {} }
+let S = { user: null, cache: { requests: [], vehicles: [], buying: [], transport: [], categories: {} } };
+function loadS()  { try { const d=localStorage.getItem('pp'); if(d) S=JSON.parse(d); if(!S.cache.buying) S.cache.buying=[]; if(!S.cache.transport) S.cache.transport=[]; if(!S.cache.categories) S.cache.categories={}; } catch {} }
 function saveS()  { try { localStorage.setItem('pp', JSON.stringify(S)); } catch {} }
-function clearS() { S={user:null,cache:{requests:[],vehicles:[],buying:[],transport:[]}}; localStorage.removeItem('pp'); }
+function clearS() { S={user:null,cache:{requests:[],vehicles:[],buying:[],transport:[],categories:{}}}; localStorage.removeItem('pp'); }
 
 /* ═══════════════════════════════════════════
    AUTH
@@ -327,11 +327,15 @@ async function fsDel(col, id) { await fetch(`${FS}/${col}/${id}`,{method:'DELETE
 async function refreshData() {
   if (!await ensureToken()) { signOut(); return; }
   try {
-    const [requests,vehicles,buying,transport] = await Promise.all([fsGet('requests'),fsGet('vehicles'),fsGet('buying'),fsGet('transport')]);
+    const [requests,vehicles,buying,transport,catDocs] = await Promise.all([fsGet('requests'),fsGet('vehicles'),fsGet('buying'),fsGet('transport'),fsGet('categories')]);
     S.cache.requests  = requests.sort((a,b)=>(b.createdAt||'')>(a.createdAt||'')?1:-1);
     S.cache.vehicles  = vehicles;
     S.cache.buying    = buying.sort((a,b)=>(b.createdAt||'')>(a.createdAt||'')?1:-1);
     S.cache.transport = transport.sort((a,b)=>(b.createdAt||'')>(a.createdAt||'')?1:-1);
+    const catMap = {};
+    catDocs.forEach(c => { if (c.key) { try { catMap[c.key] = { id: c.id, values: JSON.parse(c.values||'[]') }; } catch {} } });
+    S.cache.categories = catMap;
+    applyCategoryCache();
     saveS(); loadPage(route());
   } catch(e) { console.warn('Refresh failed:',e.message); }
 }
@@ -372,6 +376,7 @@ function loadPage(r) {
   else if (r.startsWith('transportation/')) pageTransportForm(main, r.slice(15));
   else if (r==='transportation')         pageTransportation(main);
   else if (r==='vehicles')               pageVehicles(main);
+  else if (r==='categories')            pageCategories(main);
   else if (r==='reports')               pageReports(main);
   else                                   pageDashboard(main);
 }
@@ -420,6 +425,7 @@ function tplShell(r) {
     { h:'buying',        label:'Buying'             },
     { h:'transportation',label:'Transportation'     },
     { h:'vehicles',      label:'Vehicles'           },
+    { h:'categories',   label:'Edit Categories'    },
     { h:'reports',       label:'Reports'            },
   ];
   const active = h => r===h||(h==='requests'&&r.startsWith('requests'))||(h==='buying'&&r.startsWith('buying'))||(h==='transportation'&&r.startsWith('transportation'));
@@ -637,6 +643,29 @@ const DROPDOWN_OPTS = {
   transportation: ['', 'Biz','No','Truck'],
   arbitration:    ['', 'Yes','No'],
 };
+
+const CATEGORY_DEFS = [
+  { key:'buyer',          label:'👤 Buyers',           section:'Shared',         defaults:['OGC','Abdullah','Recep','Sami','Emin'] },
+  { key:'floorPlan',      label:'🏦 Floor Plans',       section:'Buying',         defaults:['Cash','Arshad','Online','Frank','ACV'] },
+  { key:'source',         label:'🔗 Sources',           section:'Buying',         defaults:['ACV','Openlane'] },
+  { key:'buyingStatus',   label:'📊 Buying Status',     section:'Buying',         defaults:['Available','Sold','In Transit','On Hold','Arbitration','Floored'] },
+  { key:'transportation', label:'🚛 Transport Type',    section:'Buying',         defaults:['Biz','No','Truck'] },
+  { key:'arbitration',    label:'⚖️ Arbitration',       section:'Buying',         defaults:['Yes','No'] },
+  { key:'transportStatus',label:'🚦 Transport Status',  section:'Transportation', defaults:['Pending','In Transit','Delivered','Cancelled'] },
+];
+
+function applyCategoryCache() {
+  const cats = S.cache.categories || {};
+  const get  = (key, def) => ['', ...(cats[key]?.values || def)];
+  DROPDOWN_OPTS.buyer          = get('buyer',         ['OGC','Abdullah','Recep','Sami','Emin']);
+  DROPDOWN_OPTS.floorPlan      = get('floorPlan',     ['Cash','Arshad','Online','Frank','ACV']);
+  DROPDOWN_OPTS.source         = get('source',        ['ACV','Openlane']);
+  DROPDOWN_OPTS.status         = get('buyingStatus',  STATUS_OPTS);
+  DROPDOWN_OPTS.transportation = get('transportation',['Biz','No','Truck']);
+  DROPDOWN_OPTS.arbitration    = get('arbitration',   ['Yes','No']);
+  TRANSPORT_DROPDOWN_OPTS.buyer   = get('buyer',         ['OGC','Abdullah','Recep','Sami','Emin']);
+  TRANSPORT_DROPDOWN_OPTS.status  = get('transportStatus',['Pending','In Transit','Delivered','Cancelled']);
+}
 
 function matrixCard(title, data, color) {
   const entries = Object.entries(data).filter(([k])=>k).sort((a,b)=>b[1]-a[1]);
@@ -881,26 +910,26 @@ function pageBuying(el) {
       ${matrixCard('Source Summary',    bySrc,   'var(--purple)')}
     </div>
     <div class="matrix-card" style="margin-bottom:1.75rem;">
-      <div class="matrix-title">⭐ Buyer Rate Breakdown</div>
-      ${!buyerRows.length ? '<p style="font-size:.8rem;color:var(--text3);">No data yet.</p>' : `
+      <div class="matrix-title" style="font-size:.7rem;">⭐ Buyer Rate Breakdown</div>
+      ${!buyerRows.length ? '<p style="font-size:.75rem;color:var(--text3);">No data yet.</p>' : `
       <div style="overflow-x:auto;">
-        <table style="width:100%;border-collapse:collapse;font-size:.8rem;">
+        <table style="width:100%;border-collapse:collapse;font-size:.7rem;">
           <thead>
             <tr style="border-bottom:1px solid var(--border2);">
-              <th style="text-align:left;padding:.35rem .6rem;color:var(--text3);font-size:.62rem;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;">Buyer</th>
-              <th style="text-align:center;padding:.35rem .6rem;color:var(--text3);font-size:.62rem;text-transform:uppercase;letter-spacing:.06em;">Cars</th>
-              ${RATE_GRADES.map(g=>`<th style="text-align:center;padding:.35rem .5rem;font-size:.75rem;font-weight:800;color:${RATE_COLOR[g]};">${g}</th>`).join('')}
+              <th style="text-align:left;padding:.2rem .4rem;color:var(--text3);font-size:.58rem;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;">Buyer</th>
+              <th style="text-align:center;padding:.2rem .4rem;color:var(--text3);font-size:.58rem;text-transform:uppercase;letter-spacing:.06em;">Cars</th>
+              ${RATE_GRADES.map(g=>`<th style="text-align:center;padding:.2rem .35rem;font-size:.68rem;font-weight:800;color:${RATE_COLOR[g]};">${g}</th>`).join('')}
             </tr>
           </thead>
           <tbody>
             ${buyerRows.map(([name, v]) => `
               <tr style="border-bottom:1px solid var(--border);">
-                <td style="padding:.4rem .6rem;font-weight:600;color:var(--text);white-space:nowrap;">${esc(name)}</td>
-                <td style="padding:.4rem .6rem;text-align:center;color:var(--text2);">${v.count}</td>
+                <td style="padding:.25rem .4rem;font-weight:600;color:var(--text);white-space:nowrap;">${esc(name)}</td>
+                <td style="padding:.25rem .4rem;text-align:center;color:var(--text2);">${v.count}</td>
                 ${RATE_GRADES.map(g => {
                   const n = v.rates[g] || 0;
-                  return `<td style="padding:.4rem .5rem;text-align:center;">
-                    ${n ? `<span style="display:inline-block;min-width:22px;padding:.15rem .35rem;border-radius:5px;background:${RATE_COLOR[g]}22;color:${RATE_COLOR[g]};font-weight:700;font-size:.78rem;">${n}</span>` : '<span style="color:var(--text3);">—</span>'}
+                  return `<td style="padding:.25rem .35rem;text-align:center;">
+                    ${n ? `<span style="display:inline-block;min-width:18px;padding:.1rem .25rem;border-radius:4px;background:${RATE_COLOR[g]}22;color:${RATE_COLOR[g]};font-weight:700;font-size:.68rem;">${n}</span>` : '<span style="color:var(--text3);font-size:.65rem;">—</span>'}
                   </td>`;
                 }).join('')}
               </tr>`).join('')}
@@ -1280,6 +1309,92 @@ function pageVehicles(el) {
 /* ═══════════════════════════════════════════
    REPORTS
 ═══════════════════════════════════════════ */
+function pageCategories(el) {
+  const cats = S.cache.categories || {};
+
+  const getCatValues = (key, def) => cats[key]?.values || def;
+
+  const renderPage = () => {
+    const sections = [...new Set(CATEGORY_DEFS.map(c=>c.section))];
+    el.innerHTML = `
+      <div class="page-header" style="margin-bottom:1.5rem;">
+        <h1>Edit Categories</h1>
+        <p class="subtitle">Manage dropdown options across the app</p>
+      </div>
+      ${sections.map(sec => `
+        <div style="margin-bottom:2rem;">
+          <div style="font-size:.65rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.75rem;">${sec}</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;">
+            ${CATEGORY_DEFS.filter(c=>c.section===sec).map(cat => {
+              const vals = getCatValues(cat.key, cat.defaults);
+              return `<div class="matrix-card" data-cat="${esc(cat.key)}">
+                <div class="matrix-title" style="margin-bottom:.75rem;">${cat.label}</div>
+                <div class="chip-list" style="display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.75rem;min-height:28px;">
+                  ${vals.map(v=>`<span class="cat-chip" style="display:inline-flex;align-items:center;gap:.3rem;padding:.25rem .55rem;border-radius:20px;background:var(--surface2);border:1px solid var(--border2);font-size:.75rem;color:var(--text);">
+                    ${esc(v)}
+                    <button data-rm="${esc(v)}" data-cat="${esc(cat.key)}" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:.85rem;line-height:1;padding:0 .1rem;" title="Remove">×</button>
+                  </span>`).join('')}
+                  ${!vals.length ? `<span style="font-size:.75rem;color:var(--text3);">No options yet</span>` : ''}
+                </div>
+                <div style="display:flex;gap:.4rem;">
+                  <input type="text" class="cat-input" data-cat="${esc(cat.key)}" placeholder="Add option…" style="flex:1;padding:.35rem .6rem;background:var(--surface2);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-size:.78rem;outline:none;" />
+                  <button class="cat-add-btn" data-cat="${esc(cat.key)}" style="padding:.35rem .75rem;background:var(--accent);color:#fff;border:none;border-radius:7px;font-size:.78rem;font-weight:500;cursor:pointer;">Add</button>
+                </div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>`).join('')}`;
+
+    el.querySelectorAll('[data-rm]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const key = btn.dataset.cat;
+        const val = btn.dataset.rm;
+        const def = CATEGORY_DEFS.find(c=>c.key===key)?.defaults || [];
+        const current = getCatValues(key, def);
+        const updated = current.filter(v=>v!==val);
+        await saveCat(key, updated);
+        renderPage();
+      });
+    });
+
+    el.querySelectorAll('.cat-add-btn').forEach(btn => {
+      const key = btn.dataset.cat;
+      const input = el.querySelector(`.cat-input[data-cat="${key}"]`);
+      const doAdd = async () => {
+        const val = input.value.trim();
+        if (!val) return;
+        const def = CATEGORY_DEFS.find(c=>c.key===key)?.defaults || [];
+        const current = getCatValues(key, def);
+        if (current.includes(val)) { input.value=''; return; }
+        await saveCat(key, [...current, val]);
+        renderPage();
+      };
+      btn.addEventListener('click', doAdd);
+      input.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); doAdd(); } });
+      input.addEventListener('focus', e=>{ e.target.style.borderColor='var(--accent)'; });
+      input.addEventListener('blur',  e=>{ e.target.style.borderColor='var(--border2)'; });
+    });
+  };
+
+  const saveCat = async (key, values) => {
+    if (!await ensureToken()) return;
+    const existing = cats[key];
+    const payload = { key, values: JSON.stringify(values) };
+    let doc;
+    if (existing?.id) {
+      await fsPatch('categories', existing.id, payload);
+      S.cache.categories[key] = { id: existing.id, values };
+    } else {
+      doc = await fsAdd('categories', payload);
+      S.cache.categories[key] = { id: doc.id, values };
+    }
+    applyCategoryCache();
+    saveS();
+  };
+
+  renderPage();
+}
+
 function pageReports(el) {
   const all=S.cache.requests, buying=S.cache.buying;
   const total=all.length, total$=all.reduce((s,r)=>s+(Number(r.estimatedCost)||0),0);
@@ -1318,6 +1433,7 @@ function bindRows(container) {
    INIT
 ═══════════════════════════════════════════ */
 loadS();
+applyCategoryCache();
 draw();
 </script>
 </body>
