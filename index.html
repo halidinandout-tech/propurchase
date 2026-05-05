@@ -147,6 +147,19 @@
     .bar-track   { height:5px; background:var(--border2); border-radius:3px; overflow:hidden; }
     .bar-fill    { height:100%; border-radius:3px; transition:width .4s ease; }
 
+    /* ── Summary Matrix ── */
+    .matrix-wrap { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-bottom:1.75rem; }
+    .matrix-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:1.1rem 1.25rem; }
+    .matrix-title { font-size:.65rem; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.08em; margin-bottom:.75rem; }
+    .matrix-rows  { display:flex; flex-direction:column; gap:4px; }
+    .matrix-row   { display:flex; justify-content:space-between; align-items:center; padding:.3rem .5rem; border-radius:6px; background:var(--surface2); }
+    .matrix-name  { font-size:.8rem; color:var(--text2); }
+    .matrix-count { font-size:.8rem; font-weight:700; color:var(--text); min-width:24px; text-align:right; }
+    .matrix-bar   { height:3px; background:var(--border2); border-radius:2px; margin-top:3px; overflow:hidden; }
+    .matrix-bar-fill { height:100%; border-radius:2px; }
+    .cb-yes { color:var(--success); font-weight:700; }
+    .cb-no  { color:var(--text3); }
+
     /* ── Buying Table ── */
     .buying-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--surface); }
     .buying-table { border-collapse:collapse; white-space:nowrap; font-size:.75rem; min-width:100%; }
@@ -541,9 +554,9 @@ function pageDetail(el,id) {
 const BUYING_COLS = [
   // [key, label, group, type]
   ['date',                 'DATE',                  'basic',    'text'],
-  ['floorPlan',            'FLOOR PLAN',            'basic',    'text'],
-  ['source',               'SOURCE',                'basic',    'text'],
-  ['buyer',                'BUYER',                 'basic',    'text'],
+  ['floorPlan',            'FLOOR PLAN',            'basic',    'select'],
+  ['source',               'SOURCE',                'basic',    'select'],
+  ['buyer',                'BUYER',                 'basic',    'select'],
   ['vin',                  'VIN #',                 'basic',    'text'],
   ['year',                 'YEAR',                  'basic',    'text'],
   ['make',                 'MAKE',                  'basic',    'text'],
@@ -573,17 +586,43 @@ const BUYING_COLS = [
   ['cargurus',             'CARGURUS',              'summary',  'number'],
   ['rate',                 'RATE',                  'summary',  'text'],
   ['price',                'PRICE',                 'summary',  'number'],
-  ['inventory',            'INVENTORY',             'status',   'text'],
+  ['inventory',            'INVENTORY',             'status',   'checkbox'],
   ['status',               'STATUS',                'status',   'select'],
   ['floors',               'FLOORS',                'status',   'text'],
   ['comment',              'COMMENT',               'status',   'text'],
-  ['transportation',       'TRANSPORTATION',        'status',   'text'],
-  ['arbitration',          'ARBITRATION',           'status',   'text'],
+  ['transportation',       'TRANSPORTATION',        'status',   'select'],
+  ['arbitration',          'ARBITRATION',           'status',   'select'],
 ];
 
 const GROUP_CLASS = { basic:'th-basic', purchase:'th-purchase', market:'th-market', expenses:'th-expenses', summary:'th-summary', status:'th-status' };
 const MONEY_KEYS  = new Set(['buyingPrice','buyFee','otherBuyingExpenses','totalPurchase','carfaxValue','mCarfaxValue','cargurusValue','mCargurusValue','transport','auctionFee','bodyMasraf','digerMasraf','bodyBeklenenMasraf','digerBeklenenMasraf','totalBuyingPrice','totalAll','carfax','cargurus','price']);
 const STATUS_OPTS = ['Available','Sold','In Transit','On Hold','Arbitration','Floored'];
+const DROPDOWN_OPTS = {
+  floorPlan:      ['', 'Cash','Arshad','Online','Frank','ACV'],
+  source:         ['', 'ACV','Openlane'],
+  buyer:          ['', 'OGC','Abdullah','Recep','Sami','Emin'],
+  status:         ['', ...STATUS_OPTS],
+  transportation: ['', 'Biz','No','Truck'],
+  arbitration:    ['', 'Yes','No'],
+};
+
+function matrixCard(title, data, color) {
+  const entries = Object.entries(data).filter(([k])=>k).sort((a,b)=>b[1]-a[1]);
+  const max = entries[0]?.[1] || 1;
+  if (!entries.length) return `<div class="matrix-card"><div class="matrix-title">${title}</div><p style="font-size:.8rem;color:var(--text3);">No data yet.</p></div>`;
+  return `<div class="matrix-card">
+    <div class="matrix-title">${title}</div>
+    <div class="matrix-rows">
+      ${entries.map(([k,v])=>`
+        <div class="matrix-row">
+          <span class="matrix-name">${esc(k)}</span>
+          <span class="matrix-count">${v}</span>
+        </div>
+        <div class="matrix-bar"><div class="matrix-bar-fill" style="width:${(v/max*100).toFixed(1)}%;background:${color};"></div></div>
+      `).join('')}
+    </div>
+  </div>`;
+}
 
 function pageBuying(el) {
   const search = buyingSearch.toLowerCase();
@@ -592,6 +631,11 @@ function pageBuying(el) {
     [c.vin,c.make,c.model,c.year,c.buyer,c.source].some(v=>(v||'').toLowerCase().includes(search))
   ) : all;
 
+  // Summary counts
+  const byBuyer = all.reduce((a,c)=>{ if(c.buyer) a[c.buyer]=(a[c.buyer]||0)+1; return a; },{});
+  const byFloor = all.reduce((a,c)=>{ if(c.floorPlan) a[c.floorPlan]=(a[c.floorPlan]||0)+1; return a; },{});
+  const bySrc   = all.reduce((a,c)=>{ if(c.source) a[c.source]=(a[c.source]||0)+1; return a; },{});
+
   el.innerHTML = `
     <div class="list-header">
       <div><h1>Buying</h1><p class="subtitle">${all.length} record${all.length!==1?'s':''}</p></div>
@@ -599,6 +643,11 @@ function pageBuying(el) {
         <input class="buying-search" id="buying-search" placeholder="Search VIN, make, buyer…" value="${esc(buyingSearch)}" />
         <button class="btn-primary" onclick="location.hash='buying/new'">+ Add Car</button>
       </div>
+    </div>
+    <div class="matrix-wrap">
+      ${matrixCard('Buyer Summary',     byBuyer, 'var(--accent)')}
+      ${matrixCard('Floor Plan Summary',byFloor, 'var(--success)')}
+      ${matrixCard('Source Summary',    bySrc,   'var(--purple)')}
     </div>
     <div class="buying-wrap">
       <table class="buying-table">
@@ -614,10 +663,11 @@ function pageBuying(el) {
             rows.map((c,i)=>`
               <tr data-go="buying/${c.id}">
                 <td style="color:var(--text3);font-size:.7rem;">${i+1}</td>
-                ${BUYING_COLS.map(([k])=>{
+                ${BUYING_COLS.map(([k,l,g,t])=>{
                   if (k==='vin')    return `<td class="col-vin">${esc(c[k]??'')}</td>`;
                   if (k==='make'||k==='model') return `<td class="col-make">${esc(c[k]??'')}</td>`;
-                  if (k==='status') return `<td>${badge(c[k]||'')}</td>`;
+                  if (k==='status') return `<td>${c[k]?badge(c[k]):''}</td>`;
+                  if (t==='checkbox') return `<td style="text-align:center;">${c[k]==='true'?'<span class="cb-yes">✓</span>':'<span class="cb-no">—</span>'}</td>`;
                   if (MONEY_KEYS.has(k)) return `<td class="col-money">${c[k]?fmt$(c[k]):''}</td>`;
                   return `<td>${esc(c[k]??'')}</td>`;
                 }).join('')}
@@ -662,17 +712,29 @@ function pageBuyingForm(el, id) {
   const labelMap=Object.fromEntries(BUYING_COLS.map(([k,l])=>[k,l]));
 
   const fieldHTML = (k) => {
-    const t  = typeMap[k]||'text';
-    const lbl= labelMap[k]||k;
-    const v  = val(k);
-    if (t==='select') {
+    const t   = typeMap[k] || 'text';
+    const lbl = labelMap[k] || k;
+    const v   = val(k);
+    const opts = DROPDOWN_OPTS[k];
+    if (opts || t === 'select') {
+      const list = opts || STATUS_OPTS.map(o=>o);
       return `<div class="field"><label class="field-label">${lbl}</label>
-        <select id="f-${k}">${STATUS_OPTS.map(o=>`<option${v===o?' selected':''}>${o}</option>`).join('')}</select></div>`;
+        <select id="f-${k}">
+          ${list.map(o=>o===''?`<option value="">— Select —</option>`:`<option value="${esc(o)}"${v===o?' selected':''}>${esc(o)}</option>`).join('')}
+        </select></div>`;
     }
-    if (t==='date') {
+    if (t === 'checkbox') {
+      const checked = v === 'true' || v === true;
+      return `<div class="field"><label class="field-label">${lbl}</label>
+        <div style="display:flex;align-items:center;gap:.6rem;padding:.65rem .75rem;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;cursor:pointer;" onclick="this.querySelector('input').click()">
+          <input type="checkbox" id="f-${k}" ${checked?'checked':''} style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent);" onclick="event.stopPropagation()" />
+          <span style="font-size:.875rem;color:var(--text2);">Yes</span>
+        </div></div>`;
+    }
+    if (t === 'date') {
       return `<div class="field"><label class="field-label">${lbl}</label><input type="date" id="f-${k}" value="${v}" /></div>`;
     }
-    if (t==='number') {
+    if (t === 'number') {
       return `<div class="field"><label class="field-label">${lbl}</label><input type="number" id="f-${k}" value="${v}" step="0.01" min="0" /></div>`;
     }
     return `<div class="field"><label class="field-label">${lbl}</label><input type="text" id="f-${k}" value="${v}" /></div>`;
@@ -708,9 +770,10 @@ function pageBuyingForm(el, id) {
     try {
       if (!await ensureToken()) throw new Error('Session expired');
       const data={};
-      BUYING_COLS.forEach(([k])=>{
-        const el2=$(` f-${k}`)||$(`f-${k}`);
-        if (el2) data[k]=el2.value;
+      BUYING_COLS.forEach(([k,l,g,t])=>{
+        const el2=$(`f-${k}`);
+        if (!el2) return;
+        data[k] = t==='checkbox' ? String(el2.checked) : el2.value;
       });
       if (isEdit) {
         await fsPatch('buying',id,data);
