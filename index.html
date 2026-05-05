@@ -815,6 +815,18 @@ function pageBuying(el) {
   const byFloor = all.reduce((a,c)=>{ if(c.floorPlan) a[c.floorPlan]=(a[c.floorPlan]||0)+1; return a; },{});
   const bySrc   = all.reduce((a,c)=>{ if(c.source) a[c.source]=(a[c.source]||0)+1; return a; },{});
 
+  // Buyer cargurus analytics
+  const buyerStats = {};
+  all.forEach(c => {
+    if (!c.buyer) return;
+    if (!buyerStats[c.buyer]) buyerStats[c.buyer] = { count:0, cargurus:0, cargurusN:0 };
+    buyerStats[c.buyer].count++;
+    const cg = Number(c.cargurus);
+    if (!isNaN(cg) && cg !== 0) { buyerStats[c.buyer].cargurus += cg; buyerStats[c.buyer].cargurusN++; }
+  });
+  const buyerRows = Object.entries(buyerStats).sort((a,b)=>b[1].count-a[1].count);
+  const maxCg = Math.max(...buyerRows.map(([,v])=>v.cargurusN>0?v.cargurus/v.cargurusN:0), 1);
+
   el.innerHTML = `
     <div class="list-header">
       <div><h1>Buying</h1><p class="subtitle">${all.length} record${all.length!==1?'s':''}</p></div>
@@ -827,6 +839,39 @@ function pageBuying(el) {
       ${matrixCard('Buyer Summary',     byBuyer, 'var(--accent)')}
       ${matrixCard('Floor Plan Summary',byFloor, 'var(--success)')}
       ${matrixCard('Source Summary',    bySrc,   'var(--purple)')}
+    </div>
+    <div class="matrix-card" style="margin-bottom:1.75rem;">
+      <div class="matrix-title">📈 Avg Cargurus Margin — by Buyer</div>
+      ${!buyerRows.length ? '<p style="font-size:.8rem;color:var(--text3);">No data yet.</p>' : `
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:.8rem;">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border2);">
+              <th style="text-align:left;padding:.4rem .6rem;color:var(--text3);font-weight:700;font-size:.65rem;text-transform:uppercase;letter-spacing:.06em;">Buyer</th>
+              <th style="text-align:center;padding:.4rem .6rem;color:var(--text3);font-weight:700;font-size:.65rem;text-transform:uppercase;letter-spacing:.06em;">Cars</th>
+              <th style="text-align:right;padding:.4rem .6rem;color:var(--text3);font-weight:700;font-size:.65rem;text-transform:uppercase;letter-spacing:.06em;">Avg Cargurus</th>
+              <th style="padding:.4rem .6rem;width:35%;"></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${buyerRows.map(([name, v]) => {
+              const avg = v.cargurusN > 0 ? Math.round(v.cargurus / v.cargurusN) : 0;
+              const pct = maxCg > 0 ? (avg / maxCg * 100).toFixed(1) : 0;
+              const color = avg >= 2000 ? 'var(--success)' : avg >= 1000 ? 'var(--accent2)' : 'var(--warning)';
+              return `<tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:.45rem .6rem;font-weight:600;color:var(--text);">${esc(name)}</td>
+                <td style="padding:.45rem .6rem;text-align:center;color:var(--text2);">${v.count}</td>
+                <td style="padding:.45rem .6rem;text-align:right;font-weight:700;color:${color};">${avg ? fmt$(avg) : '—'}</td>
+                <td style="padding:.45rem .6rem;">
+                  <div style="height:6px;background:var(--border2);border-radius:3px;overflow:hidden;">
+                    <div style="height:100%;width:${pct}%;background:${color};border-radius:3px;transition:width .4s;"></div>
+                  </div>
+                </td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>`}
     </div>
     <div class="buying-wrap">
       <table class="buying-table">
