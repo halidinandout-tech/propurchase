@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ProPurchase — Fleet Management</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0a0a0f;
+      --surface:  #111118;
+      --surface2: #16161f;
+      --border:   #1e1e2a;
+      --border2:  #2a2a38;
+      --accent:   #6366f1;
+      --accent2:  #818cf8;
+      --text:     #e2e8f0;
+      --text2:    #94a3b8;
+      --text3:    #475569;
+      --success:  #10b981;
+      --warning:  #f59e0b;
+      --danger:   #f43f5e;
+      --purple:   #a78bfa;
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      font-size: 14px;
+      color: var(--text);
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body { min-height: 100vh; }
+
+    /* ── Login ── */
+    .login-wrap {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; min-height: 100vh; padding: 1rem;
+    }
+    .login-header { text-align: center; margin-bottom: 2rem; }
+    .login-form {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1.75rem; width: 100%; max-width: 360px;
+    }
+    .login-form h2 { font-size: 1rem; font-weight: 600; margin-bottom: 1.25rem; }
+
+    /* ── Shell ── */
+    .shell { display: flex; min-height: 100vh; }
+    .sidebar {
+      width: 240px; flex-shrink: 0; background: var(--surface);
+      border-right: 1px solid var(--border); display: flex;
+      flex-direction: column;
+    }
+    .logo { padding: 1.5rem 1.25rem 1rem; border-bottom: 1px solid var(--border); }
+    .logo-name { font-size: 0.95rem; font-weight: 700; letter-spacing: -0.01em; }
+    .logo-sub { font-size: 0.7rem; color: var(--text3); margin-top: 2px; }
+    .nav-list { list-style: none; padding: 0.5rem 0.75rem; flex: 1; }
+    .nav-list li { margin-bottom: 2px; }
+    .nav-link {
+      display: block; padding: 0.55rem 0.75rem; border-radius: 7px;
+      color: var(--text2); font-size: 0.875rem; text-decoration: none;
+      border-left: 2px solid transparent; transition: all 0.15s;
+    }
+    .nav-link:hover { color: var(--text); background: var(--surface2); }
+    .nav-link.active {
+      color: var(--text); background: var(--surface2);
+      border-left-color: var(--accent); font-weight: 500;
+    }
+    .sidebar-footer { padding: 1rem 1.25rem; border-top: 1px solid var(--border); }
+    .user-email {
+      font-size: 0.75rem; color: var(--text3); margin-bottom: 0.6rem;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .main { flex: 1; padding: 2rem 2.5rem; overflow-y: auto; }
+
+    /* ── Typography ── */
+    h1 { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; }
+    h2 { font-size: 1.05rem; font-weight: 600; }
+    h3 { font-size: 0.75rem; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.08em; }
+    .subtitle { color: var(--text3); font-size: 0.875rem; margin-top: 4px; }
+    .page-header { margin-bottom: 2rem; }
+
+    /* ── Buttons ── */
+    .btn-primary {
+      display: inline-block; padding: 0.6rem 1rem; background: var(--accent);
+      color: #fff; border: none; border-radius: 8px; font-size: 0.875rem;
+      font-weight: 500; cursor: pointer; transition: opacity 0.15s;
+      font-family: inherit;
+    }
+    .btn-primary:hover { opacity: 0.88; }
+    .btn-primary:disabled { background: var(--surface2); color: var(--text3); cursor: not-allowed; }
+    .btn-ghost {
+      display: inline-block; padding: 0.6rem 1rem; background: transparent;
+      color: var(--text2); border: 1px solid var(--border2); border-radius: 8px;
+      font-size: 0.875rem; font-weight: 500; cursor: pointer; font-family: inherit;
+      transition: all 0.15s;
+    }
+    .btn-ghost:hover { color: var(--text); border-color: var(--text3); }
+    .btn-signout {
+      width: 100%; padding: 0.4rem 0.75rem; background: transparent;
+      border: 1px solid var(--border2); color: var(--text2); border-radius: 6px;
+      font-size: 0.75rem; cursor: pointer; font-family: inherit; transition: all 0.15s;
+    }
+    .btn-signout:hover { color: var(--text); }
+    .btn-action {
+      flex: 1; padding: 0.65rem; border-radius: 8px; font-size: 0.875rem;
+      font-weight: 500; cursor: pointer; font-family: inherit; transition: opacity 0.15s;
+      text-transform: capitalize; border: 1px solid;
+    }
+    .btn-action:hover { opacity: 0.85; }
+    .btn-back {
+      background: none; border: none; color: var(--text3); font-size: 0.875rem;
+      cursor: pointer; font-family: inherit; margin-bottom: 1.5rem; padding: 0;
+    }
+    .btn-back:hover { color: var(--text2); }
+
+    /* ── Forms ── */
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field-label { font-size: 0.8rem; color: var(--text2); }
+    input, select, textarea {
+      padding: 0.6rem 0.75rem; background: var(--surface2);
+      border: 1px solid var(--border2); border-radius: 8px; color: var(--text);
+      font-size: 0.875rem; font-family: inherit; outline: none;
+      transition: border-color 0.15s; width: 100%;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    select option { background: var(--surface2); }
+    textarea { resize: vertical; line-height: 1.6; }
+    .form-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1.75rem; display: flex;
+      flex-direction: column; gap: 1.1rem;
+    }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .form-actions { display: flex; gap: 0.75rem; padding-top: 0.5rem; }
+    .form-actions .btn-primary { flex: 2; }
+    .form-actions .btn-ghost    { flex: 1; }
+
+    /* ── Error / Info boxes ── */
+    .error-box {
+      background: rgba(244,63,94,0.1); border: 1px solid rgba(244,63,94,0.3);
+      color: var(--danger); border-radius: 7px; padding: 0.6rem 0.75rem;
+      font-size: 0.8rem;
+    }
+    .hidden { display: none; }
+
+    /* ── Stats grid ── */
+    .stat-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr));
+      gap: 1rem; margin-bottom: 2.5rem;
+    }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 1.25rem 1.5rem; border-top: 2px solid var(--border);
+    }
+    .stat-card.c-warning { border-top-color: var(--warning); }
+    .stat-card.c-success { border-top-color: var(--success); }
+    .stat-card.c-purple  { border-top-color: var(--purple);  }
+    .stat-card.c-accent  { border-top-color: var(--accent);  }
+    .stat-label { font-size: 0.7rem; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+    .stat-value { font-size: 2rem; font-weight: 700; line-height: 1; }
+
+    /* ── List / Table ── */
+    .list-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; overflow: hidden;
+    }
+    .list-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.875rem 1.25rem; border-bottom: 1px solid var(--border);
+      text-decoration: none; color: inherit; transition: background 0.15s;
+      cursor: pointer;
+    }
+    .list-row:last-child { border-bottom: none; }
+    .list-row:hover { background: var(--surface2); }
+    .row-title { font-weight: 500; margin-bottom: 3px; }
+    .row-sub { font-size: 0.75rem; color: var(--text3); }
+    .row-right { display: flex; align-items: center; gap: 1rem; margin-left: 1rem; flex-shrink: 0; }
+    .row-cost { font-size: 0.85rem; color: var(--text2); font-weight: 500; }
+    .empty { padding: 3rem; text-align: center; color: var(--text3); }
+
+    /* ── Badges ── */
+    .badge {
+      font-size: 0.7rem; font-weight: 500; padding: 0.2rem 0.6rem;
+      border-radius: 20px; text-transform: capitalize;
+    }
+    .badge-pending   { background: rgba(245,158,11,0.12);  color: var(--warning); }
+    .badge-approved  { background: rgba(16,185,129,0.12);  color: var(--success); }
+    .badge-rejected  { background: rgba(244,63,94,0.12);   color: var(--danger);  }
+    .badge-completed { background: rgba(167,139,250,0.12); color: var(--purple);  }
+
+    /* ── Filter pills ── */
+    .filter-row { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+    .pill {
+      padding: 0.35rem 0.85rem; border-radius: 20px; font-size: 0.8rem;
+      border: 1px solid var(--border2); background: transparent; color: var(--text2);
+      cursor: pointer; font-family: inherit; transition: all 0.15s; text-transform: capitalize;
+    }
+    .pill.active { border-color: var(--accent); background: rgba(99,102,241,0.15); color: var(--accent2); }
+
+    /* ── List header ── */
+    .list-header {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      margin-bottom: 2rem;
+    }
+
+    /* ── Detail card ── */
+    .detail-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 0 1.25rem; margin-bottom: 1.5rem;
+    }
+    .detail-row {
+      display: flex; gap: 1rem; padding: 0.875rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-key { width: 160px; flex-shrink: 0; font-size: 0.8rem; color: var(--text3); padding-top: 1px; }
+    .detail-val { font-size: 0.875rem; line-height: 1.6; }
+    .detail-header {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      margin-bottom: 1.75rem;
+    }
+    .action-row { display: flex; gap: 0.75rem; }
+
+    /* ── Vehicles grid ── */
+    .vehicle-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(230px,1fr));
+      gap: 1rem;
+    }
+    .vehicle-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 1.25rem;
+    }
+    .vehicle-cat { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+    .vehicle-name { font-weight: 600; font-size: 1rem; margin-bottom: 4px; }
+    .vehicle-price { color: var(--accent2); font-weight: 500; font-size: 0.9rem; margin-top: 8px; }
+    .btn-remove {
+      margin-top: 14px; font-size: 0.75rem; color: var(--text3); background: none;
+      border: none; cursor: pointer; font-family: inherit; padding: 0; transition: color 0.15s;
+    }
+    .btn-remove:hover { color: var(--danger); }
+
+    /* ── Reports ── */
+    .report-grid {
+      display: grid; grid-template-columns: repeat(3,1fr); gap: 1rem; margin-bottom: 2rem;
+    }
+    .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .chart-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 1.5rem;
+    }
+    .bar-row { margin-bottom: 0.875rem; }
+    .bar-label-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
+    .bar-label { font-size: 0.8rem; color: var(--text2); text-transform: capitalize; }
+    .bar-count { font-size: 0.8rem; font-weight: 600; }
+    .bar-track { height: 5px; background: var(--border2); border-radius: 3px; overflow: hidden; }
+    .bar-fill  { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
+
+    /* ── Spinner ── */
+    .spinner-wrap { display: flex; justify-content: center; align-items: center; padding: 4rem; }
+    .spinner {
+      width: 28px; height: 28px; border: 2px solid var(--border2);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:none; } }
+    .page { animation: fadeIn 0.2s ease; }
+  </style>
+</head>
+<body>
+<div id="app"></div>
+<script type="module">
+/* ─────────────────────────────────────────────
+   Firebase CDN imports
+───────────────────────────────────────────── */
+import { initializeApp }
+  from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+  from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
+import {
+  getFirestore, enableIndexedDbPersistence,
+  collection, doc, addDoc, updateDoc, deleteDoc, getDoc,
+  onSnapshot, serverTimestamp
+} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+
+/* ─────────────────────────────────────────────
+   Init Firebase
+───────────────────────────────────────────── */
+const app = initializeApp({
+  apiKey:            "AIzaSyAgXhX22Nyi3DWHi4sveNfugKG59RMXk8s",
+  authDomain:        "propurchase-e9c65.firebaseapp.com",
+  projectId:         "propurchase-e9c65",
+  storageBucket:     "propurchase-e9c65.firebasestorage.app",
+  messagingSenderId: "670923033225",
+  appId:             "1:670923033225:web:4fa169f7acae13b13ad458"
+});
+const auth = getAuth(app);
+const db   = getFirestore(app);
+enableIndexedDbPersistence(db).catch(() => {});
+
+/* ─────────────────────────────────────────────
+   State
+───────────────────────────────────────────── */
+let currentUser   = null;
+let stopListener  = () => {};
+let activeFilter  = '';
+
+/* ─────────────────────────────────────────────
+   Helpers
+───────────────────────────────────────────── */
+const $  = id => document.getElementById(id);
+const esc = s  => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const fmt$ = n => '$' + Number(n || 0).toLocaleString();
+const go   = h => { location.hash = h; };
+
+function badge(status) {
+  return `<span class="badge badge-${esc(status)}">${esc(status)}</span>`;
+}
+
+function sortByDate(arr) {
+  return [...arr].sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));
+}
+
+/* ─────────────────────────────────────────────
+   Router
+───────────────────────────────────────────── */
+const route = () => location.hash.slice(1) || 'dashboard';
+
+window.addEventListener('hashchange', () => { stopListener(); stopListener = ()=>{}; draw(); });
+
+/* ─────────────────────────────────────────────
+   Auth
+───────────────────────────────────────────── */
+onAuthStateChanged(auth, user => {
+  currentUser = user;
+  stopListener();
+  stopListener = () => {};
+  draw();
+});
+
+/* ─────────────────────────────────────────────
+   Main draw
+───────────────────────────────────────────── */
+function draw() {
+  const el = $('app');
+  if (!currentUser) {
+    el.innerHTML = tplLogin();
+    bindLogin();
+    return;
+  }
+  const r = route();
+  el.innerHTML = tplShell(r);
+  $('signout-btn').addEventListener('click', () => signOut(auth));
+  loadPage(r);
+}
+
+function loadPage(r) {
+  const main = $('main-content');
+  main.innerHTML = `<div class="spinner-wrap"><div class="spinner"></div></div>`;
+  if      (r === 'dashboard')                                pageDashboard(main);
+  else if (r === 'requests/new')                             pageNewRequest(main);
+  else if (r.startsWith('requests/') && r.split('/')[1])     pageRequestDetail(main, r.slice(9));
+  else if (r === 'requests')                                 pageRequests(main);
+  else if (r === 'vehicles')                                 pageVehicles(main);
+  else if (r === 'reports')                                  pageReports(main);
+  else                                                       pageDashboard(main);
+}
+
+/* ─────────────────────────────────────────────
+   Templates
+───────────────────────────────────────────── */
+function tplLogin() {
+  return `
+    <div class="login-wrap">
+      <div class="login-header">
+        <div class="logo-name" style="font-size:1.25rem;font-weight:700;">ProPurchase</div>
+        <div class="logo-sub" style="font-size:0.8rem;color:var(--text3);margin-top:4px;">Fleet Management Portal</div>
+      </div>
+      <form id="login-form" class="login-form">
+        <h2>Sign in</h2>
+        <div id="login-error" class="error-box hidden"></div>
+        <div class="field" style="margin-bottom:1rem;">
+          <label class="field-label" for="login-email">Email</label>
+          <input type="email" id="login-email" placeholder="you@company.com" required />
+        </div>
+        <div class="field" style="margin-bottom:1.5rem;">
+          <label class="field-label" for="login-pwd">Password</label>
+          <input type="password" id="login-pwd" placeholder="••••••••" required />
+        </div>
+        <button type="submit" class="btn-primary" id="login-btn" style="width:100%;">Sign in</button>
+      </form>
+    </div>`;
+}
+
+function tplShell(r) {
+  const nav = [
+    { h: 'dashboard', label: 'Dashboard' },
+    { h: 'requests',  label: 'Purchase Requests' },
+    { h: 'vehicles',  label: 'Vehicles' },
+    { h: 'reports',   label: 'Reports' },
+  ];
+  const isActive = (h) => r === h || (h === 'requests' && r.startsWith('requests'));
+  return `
+    <div class="shell">
+      <nav class="sidebar">
+        <div class="logo">
+          <div class="logo-name">ProPurchase</div>
+          <div class="logo-sub">Fleet Management</div>
+        </div>
+        <ul class="nav-list">
+          ${nav.map(n => `
+            <li><a href="#${n.h}" class="nav-link ${isActive(n.h) ? 'active' : ''}">${n.label}</a></li>
+          `).join('')}
+        </ul>
+        <div class="sidebar-footer">
+          <div class="user-email">${esc(currentUser.email)}</div>
+          <button id="signout-btn" class="btn-signout">Sign out</button>
+        </div>
+      </nav>
+      <main class="main">
+        <div id="main-content" class="page"></div>
+      </main>
+    </div>`;
+}
+
+/* ─────────────────────────────────────────────
+   Bind login
+───────────────────────────────────────────── */
+function bindLogin() {
+  $('login-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = $('login-btn'), err = $('login-error');
+    btn.textContent = 'Signing in…'; btn.disabled = true;
+    err.classList.add('hidden');
+    try {
+      await signInWithEmailAndPassword(auth, $('login-email').value, $('login-pwd').value);
+    } catch {
+      err.textContent = 'Invalid email or password.';
+      err.classList.remove('hidden');
+      btn.textContent = 'Sign in'; btn.disabled = false;
+    }
+  });
+}
+
+/* ─────────────────────────────────────────────
+   Dashboard
+───────────────────────────────────────────── */
+function pageDashboard(el) {
+  const unsub = onSnapshot(collection(db, 'requests'), snap => {
+    const all = sortByDate(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    const cnt = all.reduce((a,r) => { a[r.status]=(a[r.status]||0)+1; return a; }, {});
+    const total$ = all.reduce((s,r) => s+(Number(r.estimatedCost)||0), 0);
+    const recent = all.slice(0, 6);
+
+    el.innerHTML = `
+      <div class="page-header">
+        <h1>Dashboard</h1>
+        <p class="subtitle">Overview of your fleet purchasing activity</p>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-card">         <div class="stat-label">Total Requests</div><div class="stat-value">${all.length}</div></div>
+        <div class="stat-card c-warning"><div class="stat-label">Pending</div>       <div class="stat-value">${cnt.pending||0}</div></div>
+        <div class="stat-card c-success"><div class="stat-label">Approved</div>      <div class="stat-value">${cnt.approved||0}</div></div>
+        <div class="stat-card c-purple"> <div class="stat-label">Completed</div>     <div class="stat-value">${cnt.completed||0}</div></div>
+        <div class="stat-card c-accent"> <div class="stat-label">Est. Budget</div>   <div class="stat-value" style="font-size:1.4rem;">${fmt$(total$)}</div></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+        <h2>Recent Requests</h2>
+        <a href="#requests" style="font-size:0.8rem;color:var(--accent);">View all →</a>
+      </div>
+      <div class="list-card">
+        ${!recent.length
+          ? `<div class="empty">No requests yet. <a href="#requests/new" style="color:var(--accent);">Create one →</a></div>`
+          : recent.map(r => `
+              <div class="list-row" data-go="requests/${r.id}">
+                <div>
+                  <div class="row-title">${esc(r.vehicleModel||'Unnamed request')}</div>
+                  <div class="row-sub">${r.estimatedCost ? fmt$(r.estimatedCost) : 'No estimate'} · ${esc(r.priority||'normal')} priority</div>
+                </div>
+                <div class="row-right">${badge(r.status)}</div>
+              </div>`).join('')}
+      </div>`;
+    bindRows(el);
+  });
+  stopListener = unsub;
+}
+
+/* ─────────────────────────────────────────────
+   Requests list
+───────────────────────────────────────────── */
+function pageRequests(el) {
+  const unsub = onSnapshot(collection(db, 'requests'), snap => {
+    const all = sortByDate(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    const filtered = activeFilter ? all.filter(r => r.status === activeFilter) : all;
+    const statuses = ['', 'pending', 'approved', 'rejected', 'completed'];
+
+    el.innerHTML = `
+      <div class="list-header">
+        <div>
+          <h1>Purchase Requests</h1>
+          <p class="subtitle">${all.length} total request${all.length !== 1 ? 's' : ''}</p>
+        </div>
+        <button class="btn-primary" onclick="location.hash='requests/new'">+ New Request</button>
+      </div>
+      <div class="filter-row">
+        ${statuses.map(s => `
+          <button class="pill ${activeFilter===s?'active':''}" data-filter="${s}">
+            ${s || 'All'}
+          </button>`).join('')}
+      </div>
+      <div class="list-card">
+        ${!filtered.length
+          ? `<div class="empty">No requests found.</div>`
+          : filtered.map(r => `
+              <div class="list-row" data-go="requests/${r.id}">
+                <div style="flex:1;min-width:0;">
+                  <div class="row-title">${esc(r.vehicleModel||'Unnamed')}</div>
+                  <div class="row-sub" style="max-width:420px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                    ${esc(r.justification||'No justification provided')}
+                  </div>
+                </div>
+                <div class="row-right">
+                  ${r.estimatedCost ? `<span class="row-cost">${fmt$(r.estimatedCost)}</span>` : ''}
+                  ${badge(r.status)}
+                </div>
+              </div>`).join('')}
+      </div>`;
+
+    el.querySelectorAll('.pill').forEach(btn =>
+      btn.addEventListener('click', () => { activeFilter = btn.dataset.filter; pageRequests(el); })
+    );
+    bindRows(el);
+  });
+  stopListener = unsub;
+}
+
+/* ─────────────────────────────────────────────
+   New Request
+───────────────────────────────────────────── */
+function pageNewRequest(el) {
+  stopListener = () => {};
+  el.innerHTML = `
+    <button class="btn-back" id="back-btn">← Back</button>
+    <div class="page-header">
+      <h1>New Purchase Request</h1>
+      <p class="subtitle">Fill in the details for your vehicle purchase request</p>
+    </div>
+    <div id="form-error" class="error-box hidden" style="margin-bottom:1rem;max-width:580px;"></div>
+    <form id="req-form" class="form-card" style="max-width:580px;">
+      <div class="field">
+        <label class="field-label" for="f-model">Vehicle Model / Description</label>
+        <input type="text" id="f-model" placeholder="e.g. Ford F-150 XLT 2024" required />
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label class="field-label" for="f-qty">Quantity</label>
+          <input type="number" id="f-qty" min="1" value="1" required />
+        </div>
+        <div class="field">
+          <label class="field-label" for="f-cost">Estimated Cost (USD)</label>
+          <input type="number" id="f-cost" min="0" step="0.01" placeholder="0.00" />
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label" for="f-priority">Priority</label>
+        <select id="f-priority">
+          <option value="low">Low</option>
+          <option value="normal" selected>Normal</option>
+          <option value="high">High</option>
+          <option value="urgent">Urgent</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label" for="f-just">Justification</label>
+        <textarea id="f-just" rows="4" placeholder="Explain the business need for this purchase…" required></textarea>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn-ghost" id="cancel-btn">Cancel</button>
+        <button type="submit" class="btn-primary" id="submit-btn">Submit Request</button>
+      </div>
+    </form>`;
+
+  $('back-btn').addEventListener('click', () => history.back());
+  $('cancel-btn').addEventListener('click', () => go('requests'));
+  $('req-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = $('submit-btn'), err = $('form-error');
+    btn.textContent = 'Submitting…'; btn.disabled = true;
+    err.classList.add('hidden');
+    try {
+      await addDoc(collection(db, 'requests'), {
+        vehicleModel:   $('f-model').value,
+        quantity:       Number($('f-qty').value),
+        estimatedCost:  $('f-cost').value,
+        priority:       $('f-priority').value,
+        justification:  $('f-just').value,
+        status:         'pending',
+        createdBy:      currentUser.uid,
+        createdAt:      serverTimestamp(),
+        updatedAt:      serverTimestamp(),
+      });
+      go('requests');
+    } catch {
+      err.textContent = 'Failed to submit request. Please try again.';
+      err.classList.remove('hidden');
+      btn.textContent = 'Submit Request'; btn.disabled = false;
+    }
+  });
+}
+
+/* ─────────────────────────────────────────────
+   Request Detail
+───────────────────────────────────────────── */
+const ACTIONS = { pending: ['approved','rejected'], approved: ['completed'] };
+const ACTION_STYLE = {
+  approved:  { bg:'rgba(16,185,129,0.15)',  color:'var(--success)', border:'rgba(16,185,129,0.3)'  },
+  rejected:  { bg:'rgba(244,63,94,0.15)',   color:'var(--danger)',  border:'rgba(244,63,94,0.3)'   },
+  completed: { bg:'rgba(167,139,250,0.15)', color:'var(--purple)',  border:'rgba(167,139,250,0.3)' },
+};
+
+async function pageRequestDetail(el, id) {
+  stopListener = () => {};
+  let req;
+  try { const snap = await getDoc(doc(db,'requests',id)); req = snap.exists() ? {id:snap.id,...snap.data()} : null; }
+  catch { req = null; }
+
+  if (!req) { el.innerHTML = `<p style="color:var(--danger)">Request not found.</p>`; return; }
+
+  const actions = ACTIONS[req.status] || [];
+
+  el.innerHTML = `
+    <button class="btn-back" id="back-btn">← Back to requests</button>
+    <div class="detail-header">
+      <div>
+        <h1 style="margin-bottom:6px;">${esc(req.vehicleModel||'Unnamed')}</h1>
+        <p class="subtitle">Request ID: ${esc(id.slice(0,8))}…</p>
+      </div>
+      ${badge(req.status)}
+    </div>
+    <div class="detail-card" style="max-width:580px;">
+      <div class="detail-row"><span class="detail-key">Vehicle</span>        <span class="detail-val">${esc(req.vehicleModel||'—')}</span></div>
+      <div class="detail-row"><span class="detail-key">Quantity</span>       <span class="detail-val">${esc(req.quantity||'—')}</span></div>
+      <div class="detail-row"><span class="detail-key">Estimated Cost</span> <span class="detail-val">${req.estimatedCost ? fmt$(req.estimatedCost) : '—'}</span></div>
+      <div class="detail-row"><span class="detail-key">Priority</span>       <span class="detail-val" style="text-transform:capitalize;">${esc(req.priority||'—')}</span></div>
+      <div class="detail-row"><span class="detail-key">Submitted by</span>   <span class="detail-val">${esc(req.createdBy||'—')}</span></div>
+      <div class="detail-row" style="flex-direction:column;gap:6px;">
+        <span class="detail-key">Justification</span>
+        <span class="detail-val">${esc(req.justification||'—')}</span>
+      </div>
+    </div>
+    ${actions.length ? `
+      <div class="action-row" style="max-width:580px;" id="action-row">
+        ${actions.map(a => {
+          const s = ACTION_STYLE[a];
+          return `<button class="btn-action" data-action="${a}"
+            style="background:${s.bg};color:${s.color};border-color:${s.border};">
+            Mark as ${a}
+          </button>`;
+        }).join('')}
+      </div>` : ''}`;
+
+  $('back-btn').addEventListener('click', () => go('requests'));
+
+  if (actions.length) {
+    $('action-row').addEventListener('click', async e => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      btn.disabled = true; btn.textContent = 'Updating…';
+      await updateDoc(doc(db,'requests',id), { status: btn.dataset.action, updatedAt: serverTimestamp() });
+      go('requests');
+    });
+  }
+}
+
+/* ─────────────────────────────────────────────
+   Vehicles
+───────────────────────────────────────────── */
+const CAT_COLOR = { sedan:'#6366f1', suv:'#10b981', truck:'#f59e0b', van:'#a78bfa', electric:'#06b6d4' };
+
+function pageVehicles(el) {
+  const unsub = onSnapshot(collection(db, 'vehicles'), snap => {
+    const vehicles = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    el.innerHTML = `
+      <div class="list-header">
+        <div>
+          <h1>Vehicle Catalog</h1>
+          <p class="subtitle">${vehicles.length} vehicle${vehicles.length !== 1 ? 's' : ''}</p>
+        </div>
+        <button class="btn-ghost" id="toggle-form-btn">+ Add Vehicle</button>
+      </div>
+      <div id="add-form-wrap" class="hidden">
+        <form id="vehicle-form" class="form-card" style="max-width:540px;margin-bottom:2rem;">
+          <h2 style="font-size:0.9rem;">New Vehicle</h2>
+          <div class="form-grid">
+            <div class="field"><label class="field-label">Make</label>     <input id="v-make"  placeholder="Ford"   required /></div>
+            <div class="field"><label class="field-label">Model</label>    <input id="v-model" placeholder="F-150"  required /></div>
+            <div class="field"><label class="field-label">Year</label>     <input id="v-year"  placeholder="2024"   required /></div>
+            <div class="field"><label class="field-label">Category</label> <input id="v-cat"   placeholder="Truck"  required /></div>
+          </div>
+          <div class="field">
+            <label class="field-label">Base Price (USD)</label>
+            <input id="v-price" type="number" min="0" placeholder="0.00" />
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn-ghost" id="cancel-vehicle-btn">Cancel</button>
+            <button type="submit" class="btn-primary" id="add-vehicle-btn">Add Vehicle</button>
+          </div>
+        </form>
+      </div>
+      <div class="vehicle-grid" id="vehicle-grid">
+        ${!vehicles.length
+          ? `<div class="list-card" style="grid-column:1/-1;"><div class="empty">No vehicles yet.</div></div>`
+          : vehicles.map(v => {
+              const cat   = (v.category||'').toLowerCase();
+              const color = CAT_COLOR[cat] || '#64748b';
+              return `
+                <div class="vehicle-card" style="border-top:2px solid ${color};">
+                  <div class="vehicle-cat" style="color:${color};">${esc(v.category||'Vehicle')}</div>
+                  <div class="vehicle-name">${esc(v.year)} ${esc(v.make)} ${esc(v.model)}</div>
+                  ${v.basePrice ? `<div class="vehicle-price">${fmt$(v.basePrice)}</div>` : ''}
+                  <button class="btn-remove" data-del="${v.id}">Remove</button>
+                </div>`;
+            }).join('')}
+      </div>`;
+
+    const toggleBtn = $('toggle-form-btn');
+    const formWrap  = $('add-form-wrap');
+
+    toggleBtn.addEventListener('click', () => {
+      const open = formWrap.classList.toggle('hidden', !formWrap.classList.contains('hidden'));
+      toggleBtn.textContent = formWrap.classList.contains('hidden') ? '+ Add Vehicle' : 'Cancel';
+    });
+
+    $('cancel-vehicle-btn').addEventListener('click', () => {
+      formWrap.classList.add('hidden');
+      toggleBtn.textContent = '+ Add Vehicle';
+    });
+
+    $('vehicle-form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const btn = $('add-vehicle-btn');
+      btn.textContent = 'Adding…'; btn.disabled = true;
+      await addDoc(collection(db, 'vehicles'), {
+        make: $('v-make').value, model: $('v-model').value,
+        year: $('v-year').value, category: $('v-cat').value,
+        basePrice: $('v-price').value, createdAt: serverTimestamp(),
+      });
+      // onSnapshot will re-render automatically
+    });
+
+    el.querySelectorAll('[data-del]').forEach(btn =>
+      btn.addEventListener('click', () => deleteDoc(doc(db, 'vehicles', btn.dataset.del)))
+    );
+  });
+  stopListener = unsub;
+}
+
+/* ─────────────────────────────────────────────
+   Reports
+───────────────────────────────────────────── */
+function pageReports(el) {
+  const unsub = onSnapshot(collection(db, 'requests'), snap => {
+    const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const total  = all.length;
+    const total$ = all.reduce((s,r) => s+(Number(r.estimatedCost)||0), 0);
+    const approved = all.filter(r => r.status==='approved' || r.status==='completed').length;
+    const rate   = total > 0 ? Math.round((approved/total)*100) : 0;
+    const byStatus   = all.reduce((a,r) => { a[r.status]  =(a[r.status]  ||0)+1; return a; }, {});
+    const byPriority = all.reduce((a,r) => { a[r.priority]=(a[r.priority]||0)+1; return a; }, {});
+    const maxS = Math.max(...Object.values(byStatus),   1);
+    const maxP = Math.max(...Object.values(byPriority), 1);
+    const STATUS_COLOR = { pending:'var(--warning)', approved:'var(--success)', rejected:'var(--danger)', completed:'var(--purple)' };
+
+    const bars = (obj, max, colorFn) => Object.entries(obj).map(([k,v]) => `
+      <div class="bar-row">
+        <div class="bar-label-row">
+          <span class="bar-label">${esc(k)}</span>
+          <span class="bar-count">${v}</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" style="width:${(v/max*100).toFixed(1)}%;background:${colorFn(k)};"></div></div>
+      </div>`).join('');
+
+    el.innerHTML = `
+      <div class="page-header">
+        <h1>Reports</h1>
+        <p class="subtitle">Summary of purchasing activity</p>
+      </div>
+      <div class="report-grid">
+        <div class="stat-card c-accent"> <div class="stat-label">Total Requests</div>    <div class="stat-value">${total}</div></div>
+        <div class="stat-card c-success"><div class="stat-label">Total Est. Budget</div> <div class="stat-value" style="font-size:1.4rem;">${fmt$(total$)}</div></div>
+        <div class="stat-card c-purple"> <div class="stat-label">Approval Rate</div>     <div class="stat-value">${rate}%</div></div>
+      </div>
+      <div class="chart-grid">
+        <div class="chart-card">
+          <h3 style="margin-bottom:1.25rem;">By Status</h3>
+          ${Object.keys(byStatus).length
+            ? bars(byStatus, maxS, k => STATUS_COLOR[k]||'var(--accent)')
+            : `<p style="color:var(--text3);font-size:0.8rem;">No data yet.</p>`}
+        </div>
+        <div class="chart-card">
+          <h3 style="margin-bottom:1.25rem;">By Priority</h3>
+          ${Object.keys(byPriority).length
+            ? bars(byPriority, maxP, () => 'var(--accent)')
+            : `<p style="color:var(--text3);font-size:0.8rem;">No data yet.</p>`}
+        </div>
+      </div>`;
+  });
+  stopListener = unsub;
+}
+
+/* ─────────────────────────────────────────────
+   Shared: bind [data-go] row clicks
+───────────────────────────────────────────── */
+function bindRows(container) {
+  container.querySelectorAll('[data-go]').forEach(row =>
+    row.addEventListener('click', () => go(row.dataset.go))
+  );
+}
+</script>
+</body>
+</html>
