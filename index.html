@@ -815,14 +815,20 @@ function pageBuying(el) {
   const byFloor = all.reduce((a,c)=>{ if(c.floorPlan) a[c.floorPlan]=(a[c.floorPlan]||0)+1; return a; },{});
   const bySrc   = all.reduce((a,c)=>{ if(c.source) a[c.source]=(a[c.source]||0)+1; return a; },{});
 
-  // Buyer cargurus analytics
+  // Buyer cargurus analytics + rate breakdown
+  const RATE_GRADES = ['e','d','c','b','a','1','2','3','4'];
+  const RATE_COLOR  = { e:'#ef4444',d:'#f97316',c:'#eab308',b:'#84cc16',a:'#22c55e','1':'#06b6d4','2':'#6366f1','3':'#a855f7','4':'#ec4899' };
   const buyerStats = {};
   all.forEach(c => {
     if (!c.buyer) return;
-    if (!buyerStats[c.buyer]) buyerStats[c.buyer] = { count:0, cargurus:0, cargurusN:0 };
+    if (!buyerStats[c.buyer]) {
+      buyerStats[c.buyer] = { count:0, cargurus:0, cargurusN:0, rates:{} };
+      RATE_GRADES.forEach(g => buyerStats[c.buyer].rates[g] = 0);
+    }
     buyerStats[c.buyer].count++;
     const cg = Number(c.cargurus);
     if (!isNaN(cg) && cg !== 0) { buyerStats[c.buyer].cargurus += cg; buyerStats[c.buyer].cargurusN++; }
+    if (c.rate && buyerStats[c.buyer].rates[c.rate] !== undefined) buyerStats[c.buyer].rates[c.rate]++;
   });
   const buyerRows = Object.entries(buyerStats).sort((a,b)=>b[1].count-a[1].count);
   const maxCg = Math.max(...buyerRows.map(([,v])=>v.cargurusN>0?v.cargurus/v.cargurusN:0), 1);
@@ -869,6 +875,34 @@ function pageBuying(el) {
       </div>
       ${matrixCard('Floor Plan Summary',byFloor, 'var(--success)')}
       ${matrixCard('Source Summary',    bySrc,   'var(--purple)')}
+    </div>
+    <div class="matrix-card" style="margin-bottom:1.75rem;">
+      <div class="matrix-title">⭐ Buyer Rate Breakdown</div>
+      ${!buyerRows.length ? '<p style="font-size:.8rem;color:var(--text3);">No data yet.</p>' : `
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:.8rem;">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border2);">
+              <th style="text-align:left;padding:.35rem .6rem;color:var(--text3);font-size:.62rem;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;">Buyer</th>
+              <th style="text-align:center;padding:.35rem .6rem;color:var(--text3);font-size:.62rem;text-transform:uppercase;letter-spacing:.06em;">Cars</th>
+              ${RATE_GRADES.map(g=>`<th style="text-align:center;padding:.35rem .5rem;font-size:.75rem;font-weight:800;color:${RATE_COLOR[g]};">${g}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${buyerRows.map(([name, v]) => `
+              <tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:.4rem .6rem;font-weight:600;color:var(--text);white-space:nowrap;">${esc(name)}</td>
+                <td style="padding:.4rem .6rem;text-align:center;color:var(--text2);">${v.count}</td>
+                ${RATE_GRADES.map(g => {
+                  const n = v.rates[g] || 0;
+                  return `<td style="padding:.4rem .5rem;text-align:center;">
+                    ${n ? `<span style="display:inline-block;min-width:22px;padding:.15rem .35rem;border-radius:5px;background:${RATE_COLOR[g]}22;color:${RATE_COLOR[g]};font-weight:700;font-size:.78rem;">${n}</span>` : '<span style="color:var(--text3);">—</span>'}
+                  </td>`;
+                }).join('')}
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`}
     </div>
     <div class="buying-wrap">
       <table class="buying-table">
