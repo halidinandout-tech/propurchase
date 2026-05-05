@@ -123,6 +123,13 @@
     .pill { padding:.35rem .85rem; border-radius:20px; font-size:.8rem; border:1px solid var(--border2); background:transparent; color:var(--text2); cursor:pointer; font-family:inherit; transition:all .15s; text-transform:capitalize; }
     .pill.active { border-color:var(--accent); background:rgba(99,102,241,.15); color:var(--accent2); }
 
+    /* Transport tabs */
+    .trans-tabs { display:flex; gap:.5rem; margin-bottom:1.5rem; }
+    .trans-tab { padding:.5rem 1.25rem; border-radius:8px; font-size:.85rem; font-weight:500; border:1px solid var(--border2); background:var(--surface); color:var(--text2); cursor:pointer; font-family:inherit; transition:all .15s; }
+    .trans-tab:hover { border-color:var(--accent); color:var(--text); }
+    .trans-tab.active { border-color:var(--accent); background:rgba(99,102,241,.15); color:var(--accent2); font-weight:600; }
+    .trans-tab .tab-count { display:inline-block; margin-left:.4rem; background:var(--surface2); border-radius:10px; padding:.05rem .45rem; font-size:.72rem; font-weight:700; }
+
     /* Detail */
     .detail-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:0 1.25rem; margin-bottom:1.5rem; }
     .detail-row  { display:flex; gap:1rem; padding:.875rem 0; border-bottom:1px solid var(--border); }
@@ -640,7 +647,7 @@ const DROPDOWN_OPTS = {
   source:         ['', 'ACV','Openlane'],
   buyer:          ['', 'OGC','Abdullah','Recep','Sami','Emin'],
   status:         ['', ...STATUS_OPTS],
-  transportation: ['', 'Biz','No','Truck'],
+  transportation: ['', 'Own','No','Truck'],
   arbitration:    ['', 'Yes','No'],
 };
 
@@ -649,7 +656,7 @@ const CATEGORY_DEFS = [
   { key:'floorPlan',      label:'🏦 Floor Plans',       section:'Buying',         defaults:['Cash','Arshad','Online','Frank','ACV'] },
   { key:'source',         label:'🔗 Sources',           section:'Buying',         defaults:['ACV','Openlane'] },
   { key:'buyingStatus',   label:'📊 Buying Status',     section:'Buying',         defaults:['Available','Sold','In Transit','On Hold','Arbitration','Floored'] },
-  { key:'transportation', label:'🚛 Transport Type',    section:'Buying',         defaults:['Biz','No','Truck'] },
+  { key:'transportation', label:'🚛 Transport Type',    section:'Buying',         defaults:['Own','No','Truck'] },
   { key:'arbitration',    label:'⚖️ Arbitration',       section:'Buying',         defaults:['Yes','No'] },
   { key:'transportStatus',label:'🚦 Transport Status',  section:'Transportation', defaults:['Pending','In Transit','Delivered','Cancelled'] },
 ];
@@ -661,7 +668,7 @@ function applyCategoryCache() {
   DROPDOWN_OPTS.floorPlan      = get('floorPlan',     ['Cash','Arshad','Online','Frank','ACV']);
   DROPDOWN_OPTS.source         = get('source',        ['ACV','Openlane']);
   DROPDOWN_OPTS.status         = get('buyingStatus',  STATUS_OPTS);
-  DROPDOWN_OPTS.transportation = get('transportation',['Biz','No','Truck']);
+  DROPDOWN_OPTS.transportation = get('transportation',['Own','No','Truck']);
   DROPDOWN_OPTS.arbitration    = get('arbitration',   ['Yes','No']);
   TRANSPORT_DROPDOWN_OPTS.buyer   = get('buyer',         ['OGC','Abdullah','Recep','Sami','Emin']);
   TRANSPORT_DROPDOWN_OPTS.status  = get('transportStatus',['Pending','In Transit','Delivered','Cancelled']);
@@ -1122,85 +1129,81 @@ const TRANSPORT_DROPDOWN_OPTS = {
 };
 const TRANSPORT_STATUS_COLOR = { 'Pending':'var(--warning)', 'In Transit':'var(--accent2)', 'Delivered':'var(--success)', 'Cancelled':'var(--danger)' };
 
-let transportSearch = '';
+let transportTab = 'Own';
+
+const TRANS_TAB_COLS = [
+  ['date',            '📅 Date',       'text'],
+  ['vin',             '🔑 VIN',        'text'],
+  ['year',            '🗓 Year',       'text'],
+  ['make',            '🚗 Make',       'text'],
+  ['model',           '🏷 Model',      'text'],
+  ['buyer',           '👤 Buyer',      'select'],
+  ['floorPlan',       '🏦 Floor Plan', 'select'],
+  ['status',          '📊 Status',     'select'],
+  ['totalBuyingPrice','💰 Buy Price',  'number'],
+  ['comment',         '💬 Comment',    'text'],
+];
 
 function pageTransportation(el) {
-  const search = transportSearch.toLowerCase();
-  const all    = S.cache.transport;
-  const rows   = search ? all.filter(r=>[r.vin,r.make,r.model,r.carrier,r.buyer,r.from,r.to].some(v=>(v||'').toLowerCase().includes(search))) : all;
-
-  const byStatus = all.reduce((a,r)=>{ const s=r.status||'Unknown'; a[s]=(a[s]||0)+1; return a; },{});
-  const byBuyer  = all.reduce((a,r)=>{ if(r.buyer) a[r.buyer]=(a[r.buyer]||0)+1; return a; },{});
-  const totalCost= all.reduce((s,r)=>s+(Number(r.cost)||0),0);
+  const buying = S.cache.buying;
+  const counts = { Own: 0, No: 0, Truck: 0 };
+  buying.forEach(c => { const t = c.transportation; if (t in counts) counts[t]++; });
+  const rows = buying.filter(c => (c.transportation || '') === transportTab)
+    .slice().sort((a,b)=>{ const da=a.purchasedDate||a.date||'', db=b.purchasedDate||b.date||''; return da<db?-1:da>db?1:0; });
 
   el.innerHTML=`
-    <div class="list-header">
-      <div><h1>Transportation</h1><p class="subtitle">${all.length} record${all.length!==1?'s':''}</p></div>
-      <div style="display:flex;gap:.75rem;align-items:center;">
-        <input class="buying-search" id="transport-search" placeholder="Search VIN, carrier, buyer…" value="${esc(transportSearch)}" />
-        <button class="btn-primary" onclick="location.hash='transportation/new'">+ Add Record</button>
-      </div>
+    <div class="list-header" style="margin-bottom:1.25rem;">
+      <div><h1>Transportation</h1><p class="subtitle">${rows.length} record${rows.length!==1?'s':''} in this view</p></div>
     </div>
-    <div class="matrix-wrap">
-      ${matrixCard('By Status', byStatus, 'var(--accent)')}
-      ${matrixCard('By Buyer',  byBuyer,  'var(--success)')}
-      <div class="matrix-card">
-        <div class="matrix-title">Total Cost</div>
-        <div style="font-size:1.6rem;font-weight:700;color:var(--success);">${totalCost?fmt$(totalCost):'—'}</div>
-      </div>
+    <div class="trans-tabs">
+      ${['Own','No','Truck'].map(t=>`
+        <button class="trans-tab${transportTab===t?' active':''}" data-tab="${t}">
+          ${t==='Own'?'🚗':t==='No'?'🚫':'🚛'} ${t}
+          <span class="tab-count">${counts[t]}</span>
+        </button>`).join('')}
     </div>
     <div class="buying-wrap">
       <table class="buying-table">
         <thead>
           <tr>
             <th class="th-basic">#</th>
-            ${TRANSPORT_COLS.map(([k,l])=>`<th class="th-basic">${thLabel(l)}</th>`).join('')}
-            <th class="th-status">ACTIONS</th>
+            ${TRANS_TAB_COLS.map(([k,l])=>`<th class="th-basic">${thLabel(l)}</th>`).join('')}
+            <th class="th-status">OPEN</th>
           </tr>
         </thead>
         <tbody>
-          ${!rows.length?`<tr><td colspan="${TRANSPORT_COLS.length+2}" class="empty">No records found.</td></tr>`:
-            rows.map((r,i)=>`
+          ${!rows.length
+            ? `<tr><td colspan="${TRANS_TAB_COLS.length+2}" class="empty">No ${transportTab} records yet. Set the Transportation column in Buying to "${transportTab}" to see rows here.</td></tr>`
+            : rows.map((c,i)=>`
               <tr>
                 <td style="color:var(--text3);font-size:.7rem;">${i+1}</td>
-                ${TRANSPORT_COLS.map(([k,l,t])=>{
-                  const d=`data-id="${r.id}" data-key="${k}" data-type="${t}"`;
-                  if (k==='status') return `<td class="editable-cell" ${d}>${r[k]?badge(r[k]):''}</td>`;
-                  if (k==='cost') return `<td class="editable-cell col-money" ${d}>${r[k]?fmt$(r[k]):''}</td>`;
-                  if (k==='vin')  return `<td class="editable-cell col-vin" ${d}>${esc(r[k]??'')}</td>`;
-                  return `<td class="editable-cell" ${d}>${esc(r[k]??'')}</td>`;
+                ${TRANS_TAB_COLS.map(([k,,t])=>{
+                  const d = `data-id="${c.id}" data-key="${k}" data-type="${t}"`;
+                  if (k==='status') return `<td class="editable-cell" ${d}>${c[k]?badge(c[k]):''}</td>`;
+                  if (k==='totalBuyingPrice') return `<td class="editable-cell col-money" ${d}>${c[k]?fmt$(c[k]):''}</td>`;
+                  if (k==='vin') return `<td class="editable-cell col-vin" ${d}>${esc(c[k]??'')}</td>`;
+                  return `<td class="editable-cell" ${d}>${esc(c[k]??'')}</td>`;
                 }).join('')}
-                <td style="white-space:nowrap;">
-                  <button class="btn-ghost" data-addrow style="font-size:.7rem;padding:.25rem .5rem;margin-right:3px;" title="Add new row">+</button>
-                  <a href="#transportation/${r.id}" style="font-size:.75rem;color:var(--accent2);margin-right:.5rem;text-decoration:none;" title="Open full form">✏</a>
-                  <button class="btn-danger" data-del="${r.id}">Delete</button>
+                <td style="white-space:nowrap;text-align:center;">
+                  <a href="#buying/${c.id}" style="font-size:.75rem;color:var(--accent2);text-decoration:none;" title="Open in Buying">✏ Edit</a>
                 </td>
               </tr>`).join('')}
         </tbody>
       </table>
     </div>`;
 
-  $('transport-search').addEventListener('input', e=>{ transportSearch=e.target.value; pageTransportation(el); });
-  const tbody = el.querySelector('.buying-table tbody');
-  el.querySelector('.buying-table tbody').addEventListener('click', e=>{
-    const td = e.target.closest('.editable-cell');
-    if (!td||td.dataset.editing) return;
-    const rec = S.cache.transport.find(r=>r.id===td.dataset.id);
-    if (!rec) return;
-    editCell(td, rec, td.dataset.key, td.dataset.type, TRANSPORT_DROPDOWN_OPTS[td.dataset.key]||null, 'transport');
-  });
-  el.querySelectorAll('[data-addrow]').forEach(btn=>btn.addEventListener('click', ()=>
-    insertBlankRow(tbody, TRANSPORT_COLS, TRANSPORT_DROPDOWN_OPTS, async data=>{
-      const doc=await fsAdd('transport',data); S.cache.transport.unshift(doc); saveS(); pageTransportation(el);
-    })
-  ));
-  el.querySelectorAll('[data-del]').forEach(btn=>btn.addEventListener('click', async ()=>{
-    if (!confirm('Delete this record?')) return;
-    if (!await ensureToken()) return;
-    await fsDel('transport', btn.dataset.del);
-    S.cache.transport = S.cache.transport.filter(r=>r.id!==btn.dataset.del);
-    saveS(); pageTransportation(el);
+  el.querySelectorAll('.trans-tab').forEach(btn => btn.addEventListener('click', () => {
+    transportTab = btn.dataset.tab;
+    pageTransportation(el);
   }));
+
+  el.querySelector('.buying-table tbody').addEventListener('click', e => {
+    const td = e.target.closest('.editable-cell');
+    if (!td || td.dataset.editing) return;
+    const car = S.cache.buying.find(c => c.id === td.dataset.id);
+    if (!car) return;
+    editCell(td, car, td.dataset.key, td.dataset.type, DROPDOWN_OPTS[td.dataset.key] || null, 'buying');
+  });
 }
 
 function pageTransportForm(el, id) {
