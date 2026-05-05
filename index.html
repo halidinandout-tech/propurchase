@@ -188,10 +188,13 @@
     }
     .buying-table tbody tr:hover td { background:var(--surface2); cursor:pointer; }
     .buying-table tbody tr:last-child td { border-bottom:none; }
-    /* sticky first col */
+    /* sticky first + last col */
     .buying-table th:first-child,
     .buying-table td:first-child { position:sticky; left:0; z-index:1; background:var(--surface); border-right:2px solid var(--border2); }
     .buying-table th:first-child { z-index:3; background:var(--surface2); }
+    .buying-table th:last-child,
+    .buying-table td:last-child  { position:sticky; right:0; z-index:1; background:var(--surface); border-left:2px solid var(--border2); }
+    .buying-table th:last-child  { z-index:3; background:var(--surface2); }
     /* group header colours */
     .th-basic    { background:#12121c !important; }
     .th-purchase { background:#0f1a18 !important; color:#6ee7b7 !important; }
@@ -697,7 +700,7 @@ function insertBlankRow(tbody, cols, dropdownOpts, onSave) {
   actTd.appendChild(cancelBtn);
   tr.appendChild(actTd);
   tbody.appendChild(tr);
-
+  tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
   tr.querySelector('.cell-input')?.focus();
   cancelBtn.addEventListener('click', () => tr.remove());
   saveBtn.addEventListener('click', async () => {
@@ -836,15 +839,16 @@ function pageBuying(el) {
                   if (MONEY_KEYS.has(k)) return `<td class="editable-cell col-money" ${d}>${c[k]?fmt$(c[k]):''}</td>`;
                   return `<td class="editable-cell" ${d}>${esc(c[k]??'')}</td>`;
                 }).join('')}
-                <td style="white-space:nowrap;">
-                  <button class="btn-ghost" data-addrow style="font-size:.7rem;padding:.25rem .5rem;margin-right:3px;" title="Add new row">+</button>
-                  <a href="#buying/${c.id}" style="font-size:.75rem;color:var(--accent2);margin-right:.5rem;text-decoration:none;" title="Open full form">✏</a>
-                  <button class="btn-danger" data-del="${c.id}">Delete</button>
+                <td style="white-space:nowrap;text-align:center;">
+                  <button class="btn-primary" data-addrow style="font-size:.72rem;padding:.3rem .6rem;margin-right:3px;" title="Add new row">+ Row</button>
+                  <a href="#buying/${c.id}" style="font-size:.75rem;color:var(--accent2);margin-right:.4rem;text-decoration:none;" title="Edit full form">✏</a>
+                  <button class="btn-danger" data-del="${c.id}">✕</button>
                 </td>
               </tr>`).join('')}
         </tbody>
       </table>
-    </div>`;
+    </div>
+    <button class="btn-ghost" id="add-row-btn" style="margin-top:.75rem;width:100%;border-style:dashed;color:var(--accent2);font-size:.85rem;">+ Add Row</button>`;
 
   $('buying-search').addEventListener('input', e=>{ buyingSearch=e.target.value; pageBuying(el); });
   el.querySelector('.buying-table tbody').addEventListener('click', e=>{
@@ -855,6 +859,10 @@ function pageBuying(el) {
     editCell(td, car, td.dataset.key, td.dataset.type, DROPDOWN_OPTS[td.dataset.key] || null);
   });
   const tbody = el.querySelector('.buying-table tbody');
+  const addRowFn = () => insertBlankRow(tbody, BUYING_COLS, DROPDOWN_OPTS, async data=>{
+      const doc=await fsAdd('buying',data); S.cache.buying.unshift(doc); saveS(); pageBuying(el);
+    });
+  $('add-row-btn').addEventListener('click', addRowFn);
   el.querySelectorAll('[data-addrow]').forEach(btn=>btn.addEventListener('click', ()=>
     insertBlankRow(tbody, BUYING_COLS, DROPDOWN_OPTS, async data=>{
       const doc=await fsAdd('buying',data); S.cache.buying.unshift(doc); saveS(); pageBuying(el);
