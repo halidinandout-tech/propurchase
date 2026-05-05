@@ -383,6 +383,7 @@ const $   = id => document.getElementById(id);
 const esc = s  => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const fmt$= n  => n ? '$'+Number(n||0).toLocaleString() : '';
 const badge= s => `<span class="badge badge-${esc((s||'').toLowerCase().replace(/\s+/g,'-'))}">${esc(s||'')}</span>`;
+const thLabel = l => { const i=l.indexOf(' '); return i>0?`<span style="font-size:1.5em;vertical-align:-.15em;line-height:1;">${l.slice(0,i)}</span>&thinsp;${l.slice(i+1)}`:l; };
 const cell = v => `<td>${esc(v??'')}</td>`;
 const cellM= v => `<td class="col-money">${fmt$(v)}</td>`;
 const cellN= v => `<td class="col-num">${esc(v??'')}</td>`;
@@ -832,7 +833,7 @@ function pageBuying(el) {
         <thead>
           <tr>
             <th class="th-basic">#</th>
-            ${BUYING_COLS.map(([k,label,grp])=>`<th class="${GROUP_CLASS[grp]||''}" title="${label}">${label}</th>`).join('')}
+            ${BUYING_COLS.map(([k,label,grp])=>`<th class="${GROUP_CLASS[grp]||''}" title="${label}">${thLabel(label)}</th>`).join('')}
             <th class="th-status">ACTIONS</th>
           </tr>
         </thead>
@@ -1044,7 +1045,7 @@ function pageTransportation(el) {
         <thead>
           <tr>
             <th class="th-basic">#</th>
-            ${TRANSPORT_COLS.map(([k,l])=>`<th class="th-basic">${l}</th>`).join('')}
+            ${TRANSPORT_COLS.map(([k,l])=>`<th class="th-basic">${thLabel(l)}</th>`).join('')}
             <th class="th-status">ACTIONS</th>
           </tr>
         </thead>
