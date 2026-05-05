@@ -110,10 +110,13 @@
     .badge-approved  { background:rgba(16,185,129,.12); color:var(--success); }
     .badge-rejected  { background:rgba(244,63,94,.12);  color:var(--danger);  }
     .badge-completed { background:rgba(167,139,250,.12);color:var(--purple);  }
-    .badge-available { background:rgba(16,185,129,.12); color:var(--success); }
-    .badge-sold      { background:rgba(99,102,241,.12); color:var(--accent2); }
-    .badge-transit   { background:rgba(245,158,11,.12); color:var(--warning); }
-    .badge-hold      { background:rgba(167,139,250,.12);color:var(--purple);  }
+    .badge-available   { background:rgba(16,185,129,.12); color:var(--success); }
+    .badge-sold        { background:rgba(99,102,241,.12); color:var(--accent2); }
+    .badge-transit     { background:rgba(245,158,11,.12); color:var(--warning); }
+    .badge-hold        { background:rgba(167,139,250,.12);color:var(--purple);  }
+    .badge-in-transit  { background:rgba(99,102,241,.12); color:var(--accent2); }
+    .badge-delivered   { background:rgba(16,185,129,.12); color:var(--success); }
+    .badge-cancelled   { background:rgba(244,63,94,.12);  color:var(--danger);  }
 
     /* Filter pills */
     .filter-row { display:flex; gap:.5rem; margin-bottom:1.25rem; flex-wrap:wrap; }
@@ -226,10 +229,10 @@ const REFRESH_URL= `https://securetoken.googleapis.com/v1/token?key=${API_KEY}`;
 /* ═══════════════════════════════════════════
    STATE
 ═══════════════════════════════════════════ */
-let S = { user: null, cache: { requests: [], vehicles: [], buying: [] } };
-function loadS()  { try { const d=localStorage.getItem('pp'); if(d) S=JSON.parse(d); if(!S.cache.buying) S.cache.buying=[]; } catch {} }
+let S = { user: null, cache: { requests: [], vehicles: [], buying: [], transport: [] } };
+function loadS()  { try { const d=localStorage.getItem('pp'); if(d) S=JSON.parse(d); if(!S.cache.buying) S.cache.buying=[]; if(!S.cache.transport) S.cache.transport=[]; } catch {} }
 function saveS()  { try { localStorage.setItem('pp', JSON.stringify(S)); } catch {} }
-function clearS() { S={user:null,cache:{requests:[],vehicles:[],buying:[]}}; localStorage.removeItem('pp'); }
+function clearS() { S={user:null,cache:{requests:[],vehicles:[],buying:[],transport:[]}}; localStorage.removeItem('pp'); }
 
 /* ═══════════════════════════════════════════
    AUTH
@@ -310,10 +313,11 @@ async function fsDel(col, id) { await fetch(`${FS}/${col}/${id}`,{method:'DELETE
 async function refreshData() {
   if (!await ensureToken()) { signOut(); return; }
   try {
-    const [requests,vehicles,buying] = await Promise.all([fsGet('requests'),fsGet('vehicles'),fsGet('buying')]);
-    S.cache.requests = requests.sort((a,b)=>(b.createdAt||'')>(a.createdAt||'')?1:-1);
-    S.cache.vehicles = vehicles;
-    S.cache.buying   = buying.sort((a,b)=>(b.createdAt||'')>(a.createdAt||'')?1:-1);
+    const [requests,vehicles,buying,transport] = await Promise.all([fsGet('requests'),fsGet('vehicles'),fsGet('buying'),fsGet('transport')]);
+    S.cache.requests  = requests.sort((a,b)=>(b.createdAt||'')>(a.createdAt||'')?1:-1);
+    S.cache.vehicles  = vehicles;
+    S.cache.buying    = buying.sort((a,b)=>(b.createdAt||'')>(a.createdAt||'')?1:-1);
+    S.cache.transport = transport.sort((a,b)=>(b.createdAt||'')>(a.createdAt||'')?1:-1);
     saveS(); loadPage(route());
   } catch(e) { console.warn('Refresh failed:',e.message); }
 }
@@ -350,6 +354,9 @@ function loadPage(r) {
   else if (r==='buying/new')             pageBuyingForm(main, null);
   else if (r.startsWith('buying/'))      pageBuyingForm(main, r.slice(7));
   else if (r==='buying')                 pageBuying(main);
+  else if (r==='transportation/new')     pageTransportForm(main, null);
+  else if (r.startsWith('transportation/')) pageTransportForm(main, r.slice(15));
+  else if (r==='transportation')         pageTransportation(main);
   else if (r==='vehicles')               pageVehicles(main);
   else if (r==='reports')               pageReports(main);
   else                                   pageDashboard(main);
@@ -393,13 +400,14 @@ function tplLogin() {
 
 function tplShell(r) {
   const nav = [
-    { h:'dashboard', label:'Dashboard'          },
-    { h:'requests',  label:'Purchase Requests'  },
-    { h:'buying',    label:'Buying'             },
-    { h:'vehicles',  label:'Vehicles'           },
-    { h:'reports',   label:'Reports'            },
+    { h:'dashboard',     label:'Dashboard'          },
+    { h:'requests',      label:'Purchase Requests'  },
+    { h:'buying',        label:'Buying'             },
+    { h:'transportation',label:'Transportation'     },
+    { h:'vehicles',      label:'Vehicles'           },
+    { h:'reports',       label:'Reports'            },
   ];
-  const active = h => r===h||(h==='requests'&&r.startsWith('requests'))||(h==='buying'&&r.startsWith('buying'));
+  const active = h => r===h||(h==='requests'&&r.startsWith('requests'))||(h==='buying'&&r.startsWith('buying'))||(h==='transportation'&&r.startsWith('transportation'));
   return `<div class="shell">
     <nav class="sidebar">
       <div class="logo"><div class="logo-name">ProPurchase</div><div class="logo-sub">Fleet Management</div></div>
@@ -604,7 +612,7 @@ const BUYING_COLS = [
 ];
 
 const GROUP_CLASS = { basic:'th-basic', purchase:'th-purchase', market:'th-market', expenses:'th-expenses', summary:'th-summary', status:'th-status' };
-const MONEY_KEYS  = new Set(['buyingPrice','buyFee','otherBuyingExpenses','totalPurchase','carfaxValue','mCarfaxValue','cargurusValue','mCargurusValue','transport','auctionFee','bodyMasraf','digerMasraf','bodyBeklenenMasraf','digerBeklenenMasraf','totalBuyingPrice','totalAll','carfax','cargurus','price']);
+const MONEY_KEYS  = new Set(['buyingPrice','buyFee','otherBuyingExpenses','totalPurchase','carfaxValue','mCarfaxValue','cargurusValue','mCargurusValue','transport','auctionFee','bodyMasraf','digerMasraf','bodyBeklenenMasraf','digerBeklenenMasraf','totalBuyingPrice','totalAll','carfax','cargurus','price','cost']);
 const STATUS_OPTS = ['Available','Sold','In Transit','On Hold','Arbitration','Floored'];
 const DROPDOWN_OPTS = {
   floorPlan:      ['', 'Cash','Arshad','Online','Frank','ACV'],
@@ -633,6 +641,77 @@ function matrixCard(title, data, color) {
   </div>`;
 }
 
+function insertBlankRow(tbody, cols, dropdownOpts, onSave) {
+  tbody.querySelector('.new-row')?.remove();
+  const tr = document.createElement('tr');
+  tr.className = 'new-row';
+  tr.style.cssText = 'background:rgba(99,102,241,.06);';
+
+  const numTd = document.createElement('td');
+  numTd.style.cssText = 'color:var(--accent2);font-size:.8rem;font-weight:700;text-align:center;';
+  numTd.textContent = '+';
+  tr.appendChild(numTd);
+
+  cols.forEach(col => {
+    const k = col[0], l = col[1], t = col.length >= 4 ? col[3] : col[2];
+    const td = document.createElement('td');
+    td.style.cssText = 'padding:3px 4px;';
+    const opts = dropdownOpts[k];
+    let inp;
+    if (t === 'checkbox') {
+      inp = document.createElement('input');
+      inp.type = 'checkbox';
+      inp.style.cssText = 'width:15px;height:15px;accent-color:var(--accent);display:block;margin:auto;';
+    } else if (t === 'select' || opts) {
+      inp = document.createElement('select');
+      (opts || []).forEach(o => {
+        const op = document.createElement('option');
+        op.value = o; op.textContent = o || '— —';
+        inp.appendChild(op);
+      });
+    } else {
+      inp = document.createElement('input');
+      inp.type = t === 'number' ? 'number' : t === 'date' ? 'date' : 'text';
+      inp.placeholder = l.toLowerCase();
+      if (t === 'number') { inp.step = '0.01'; inp.min = '0'; }
+    }
+    inp.className = 'cell-input';
+    inp.dataset.k = k;
+    inp.dataset.t = t;
+    inp.style.minWidth = '70px';
+    td.appendChild(inp);
+    tr.appendChild(td);
+  });
+
+  const actTd = document.createElement('td');
+  actTd.style.whiteSpace = 'nowrap';
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'btn-primary';
+  saveBtn.style.cssText = 'font-size:.7rem;padding:.3rem .65rem;';
+  saveBtn.textContent = 'Save';
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'btn-ghost';
+  cancelBtn.style.cssText = 'font-size:.7rem;padding:.3rem .5rem;margin-left:4px;';
+  cancelBtn.textContent = '✗';
+  actTd.appendChild(saveBtn);
+  actTd.appendChild(cancelBtn);
+  tr.appendChild(actTd);
+  tbody.appendChild(tr);
+
+  tr.querySelector('.cell-input')?.focus();
+  cancelBtn.addEventListener('click', () => tr.remove());
+  saveBtn.addEventListener('click', async () => {
+    saveBtn.disabled = true; saveBtn.textContent = '…';
+    if (!await ensureToken()) { saveBtn.disabled = false; saveBtn.textContent = 'Save'; return; }
+    const data = {};
+    tr.querySelectorAll('[data-k]').forEach(inp => {
+      data[inp.dataset.k] = inp.dataset.t === 'checkbox' ? String(inp.checked) : inp.value;
+    });
+    try { await onSave(data); }
+    catch { saveBtn.disabled = false; saveBtn.textContent = 'Save'; }
+  });
+}
+
 function setCellContent(td, car, key, type) {
   delete td.dataset.editing;
   const v = car[key];
@@ -647,7 +726,7 @@ function setCellContent(td, car, key, type) {
   }
 }
 
-async function editCell(td, car, key, type, opts) {
+async function editCell(td, car, key, type, opts, col='buying') {
   if (td.dataset.editing) return;
   td.dataset.editing = '1';
   const orig = car[key];
@@ -657,7 +736,7 @@ async function editCell(td, car, key, type, opts) {
     car[key] = newVal;
     setCellContent(td, car, key, type);
     td.classList.add('saving-flash');
-    try { if (!await ensureToken()) throw 0; await fsPatch('buying', car.id, {[key]: newVal}); saveS(); }
+    try { if (!await ensureToken()) throw 0; await fsPatch(col, car.id, {[key]: newVal}); saveS(); }
     catch { car[key] = orig; setCellContent(td, car, key, type); }
     setTimeout(() => td.classList.remove('saving-flash'), 400);
     return;
@@ -694,7 +773,7 @@ async function editCell(td, car, key, type, opts) {
       td.classList.add('saving-flash');
       try {
         if (!await ensureToken()) throw 0;
-        await fsPatch('buying', car.id, {[key]: type === 'number' && newVal !== '' ? Number(newVal) : newVal});
+        await fsPatch(col, car.id, {[key]: type === 'number' && newVal !== '' ? Number(newVal) : newVal});
         saveS();
       } catch { car[key] = orig; setCellContent(td, car, key, type); }
       setTimeout(() => td.classList.remove('saving-flash'), 400);
@@ -758,6 +837,7 @@ function pageBuying(el) {
                   return `<td class="editable-cell" ${d}>${esc(c[k]??'')}</td>`;
                 }).join('')}
                 <td style="white-space:nowrap;">
+                  <button class="btn-ghost" data-addrow style="font-size:.7rem;padding:.25rem .5rem;margin-right:3px;" title="Add new row">+</button>
                   <a href="#buying/${c.id}" style="font-size:.75rem;color:var(--accent2);margin-right:.5rem;text-decoration:none;" title="Open full form">✏</a>
                   <button class="btn-danger" data-del="${c.id}">Delete</button>
                 </td>
@@ -774,6 +854,12 @@ function pageBuying(el) {
     if (!car) return;
     editCell(td, car, td.dataset.key, td.dataset.type, DROPDOWN_OPTS[td.dataset.key] || null);
   });
+  const tbody = el.querySelector('.buying-table tbody');
+  el.querySelectorAll('[data-addrow]').forEach(btn=>btn.addEventListener('click', ()=>
+    insertBlankRow(tbody, BUYING_COLS, DROPDOWN_OPTS, async data=>{
+      const doc=await fsAdd('buying',data); S.cache.buying.unshift(doc); saveS(); pageBuying(el);
+    })
+  ));
   el.querySelectorAll('[data-del]').forEach(btn=>btn.addEventListener('click', async ()=>{
     if (!confirm('Delete this record?')) return;
     if (!await ensureToken()) return;
@@ -878,6 +964,165 @@ function pageBuyingForm(el, id) {
       }
       saveS(); go('buying');
     } catch(ex) { err.textContent=ex.message||'Failed to save.'; err.classList.remove('hidden'); btn.textContent=isEdit?'Save Changes':'Add Car'; btn.disabled=false; }
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TRANSPORTATION
+═══════════════════════════════════════════════════════════ */
+const TRANSPORT_COLS = [
+  ['date',         'DATE',          'text'],
+  ['vin',          'VIN #',         'text'],
+  ['year',         'YEAR',          'text'],
+  ['make',         'MAKE',          'text'],
+  ['model',        'MODEL',         'text'],
+  ['from',         'FROM',          'text'],
+  ['to',           'TO',            'text'],
+  ['carrier',      'CARRIER',       'text'],
+  ['cost',         'COST',          'number'],
+  ['status',       'STATUS',        'select'],
+  ['pickupDate',   'PICKUP DATE',   'date'],
+  ['deliveryDate', 'DELIVERY DATE', 'date'],
+  ['buyer',        'BUYER',         'select'],
+  ['notes',        'NOTES',         'text'],
+];
+const TRANSPORT_STATUS_OPTS = ['','Pending','In Transit','Delivered','Cancelled'];
+const TRANSPORT_DROPDOWN_OPTS = {
+  status: TRANSPORT_STATUS_OPTS,
+  buyer:  ['','OGC','Abdullah','Recep','Sami','Emin'],
+};
+const TRANSPORT_STATUS_COLOR = { 'Pending':'var(--warning)', 'In Transit':'var(--accent2)', 'Delivered':'var(--success)', 'Cancelled':'var(--danger)' };
+
+let transportSearch = '';
+
+function pageTransportation(el) {
+  const search = transportSearch.toLowerCase();
+  const all    = S.cache.transport;
+  const rows   = search ? all.filter(r=>[r.vin,r.make,r.model,r.carrier,r.buyer,r.from,r.to].some(v=>(v||'').toLowerCase().includes(search))) : all;
+
+  const byStatus = all.reduce((a,r)=>{ const s=r.status||'Unknown'; a[s]=(a[s]||0)+1; return a; },{});
+  const byBuyer  = all.reduce((a,r)=>{ if(r.buyer) a[r.buyer]=(a[r.buyer]||0)+1; return a; },{});
+  const totalCost= all.reduce((s,r)=>s+(Number(r.cost)||0),0);
+
+  el.innerHTML=`
+    <div class="list-header">
+      <div><h1>Transportation</h1><p class="subtitle">${all.length} record${all.length!==1?'s':''}</p></div>
+      <div style="display:flex;gap:.75rem;align-items:center;">
+        <input class="buying-search" id="transport-search" placeholder="Search VIN, carrier, buyer…" value="${esc(transportSearch)}" />
+        <button class="btn-primary" onclick="location.hash='transportation/new'">+ Add Record</button>
+      </div>
+    </div>
+    <div class="matrix-wrap">
+      ${matrixCard('By Status', byStatus, 'var(--accent)')}
+      ${matrixCard('By Buyer',  byBuyer,  'var(--success)')}
+      <div class="matrix-card">
+        <div class="matrix-title">Total Cost</div>
+        <div style="font-size:1.6rem;font-weight:700;color:var(--success);">${totalCost?fmt$(totalCost):'—'}</div>
+      </div>
+    </div>
+    <div class="buying-wrap">
+      <table class="buying-table">
+        <thead>
+          <tr>
+            <th class="th-basic">#</th>
+            ${TRANSPORT_COLS.map(([k,l])=>`<th class="th-basic">${l}</th>`).join('')}
+            <th class="th-status">ACTIONS</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${!rows.length?`<tr><td colspan="${TRANSPORT_COLS.length+2}" class="empty">No records found.</td></tr>`:
+            rows.map((r,i)=>`
+              <tr>
+                <td style="color:var(--text3);font-size:.7rem;">${i+1}</td>
+                ${TRANSPORT_COLS.map(([k,l,t])=>{
+                  const d=`data-id="${r.id}" data-key="${k}" data-type="${t}"`;
+                  if (k==='status') return `<td class="editable-cell" ${d}>${r[k]?badge(r[k]):''}</td>`;
+                  if (k==='cost') return `<td class="editable-cell col-money" ${d}>${r[k]?fmt$(r[k]):''}</td>`;
+                  if (k==='vin')  return `<td class="editable-cell col-vin" ${d}>${esc(r[k]??'')}</td>`;
+                  return `<td class="editable-cell" ${d}>${esc(r[k]??'')}</td>`;
+                }).join('')}
+                <td style="white-space:nowrap;">
+                  <button class="btn-ghost" data-addrow style="font-size:.7rem;padding:.25rem .5rem;margin-right:3px;" title="Add new row">+</button>
+                  <a href="#transportation/${r.id}" style="font-size:.75rem;color:var(--accent2);margin-right:.5rem;text-decoration:none;" title="Open full form">✏</a>
+                  <button class="btn-danger" data-del="${r.id}">Delete</button>
+                </td>
+              </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+
+  $('transport-search').addEventListener('input', e=>{ transportSearch=e.target.value; pageTransportation(el); });
+  const tbody = el.querySelector('.buying-table tbody');
+  el.querySelector('.buying-table tbody').addEventListener('click', e=>{
+    const td = e.target.closest('.editable-cell');
+    if (!td||td.dataset.editing) return;
+    const rec = S.cache.transport.find(r=>r.id===td.dataset.id);
+    if (!rec) return;
+    editCell(td, rec, td.dataset.key, td.dataset.type, TRANSPORT_DROPDOWN_OPTS[td.dataset.key]||null, 'transport');
+  });
+  el.querySelectorAll('[data-addrow]').forEach(btn=>btn.addEventListener('click', ()=>
+    insertBlankRow(tbody, TRANSPORT_COLS, TRANSPORT_DROPDOWN_OPTS, async data=>{
+      const doc=await fsAdd('transport',data); S.cache.transport.unshift(doc); saveS(); pageTransportation(el);
+    })
+  ));
+  el.querySelectorAll('[data-del]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    if (!confirm('Delete this record?')) return;
+    if (!await ensureToken()) return;
+    await fsDel('transport', btn.dataset.del);
+    S.cache.transport = S.cache.transport.filter(r=>r.id!==btn.dataset.del);
+    saveS(); pageTransportation(el);
+  }));
+}
+
+function pageTransportForm(el, id) {
+  const rec = id ? S.cache.transport.find(r=>r.id===id) : null;
+  const val = k => rec ? esc(rec[k]??'') : '';
+  const isEdit = !!rec;
+  const fieldHTML = ([k,l,t]) => {
+    const opts = TRANSPORT_DROPDOWN_OPTS[k];
+    if (opts) return `<div class="field"><label class="field-label">${l}</label>
+      <select id="tf-${k}">${opts.map(o=>o===''?`<option value="">— Select —</option>`:`<option value="${esc(o)}"${val(k)===o?' selected':''}>${esc(o)}</option>`).join('')}</select></div>`;
+    if (t==='date')   return `<div class="field"><label class="field-label">${l}</label><input type="date" id="tf-${k}" value="${val(k)}" /></div>`;
+    if (t==='number') return `<div class="field"><label class="field-label">${l}</label><input type="number" id="tf-${k}" value="${val(k)}" step="0.01" min="0" /></div>`;
+    return `<div class="field"><label class="field-label">${l}</label><input type="text" id="tf-${k}" value="${val(k)}" /></div>`;
+  };
+  el.innerHTML=`
+    <button class="btn-back" id="back-btn">← Back to Transportation</button>
+    <div class="page-header">
+      <h1>${isEdit?`Edit: ${esc(rec.year||'')} ${esc(rec.make||'')} ${esc(rec.model||'')}`:' Add Transport Record'}</h1>
+      <p class="subtitle">${isEdit?`VIN: ${esc(rec.vin||'—')}`:'Fill in the transport details'}</p>
+    </div>
+    <div id="form-error" class="error-box hidden" style="max-width:760px;margin-bottom:1rem;"></div>
+    <form id="tf-form" class="form-card" style="max-width:760px;">
+      <div class="form-grid-4">${TRANSPORT_COLS.slice(0,4).map(fieldHTML).join('')}</div>
+      <div class="form-grid-4">${TRANSPORT_COLS.slice(4,8).map(fieldHTML).join('')}</div>
+      <div class="form-grid-4">${TRANSPORT_COLS.slice(8,12).map(fieldHTML).join('')}</div>
+      <div class="form-grid">${TRANSPORT_COLS.slice(12).map(fieldHTML).join('')}</div>
+      <div class="form-actions">
+        <button type="button" class="btn-ghost" id="cancel-btn">Cancel</button>
+        <button type="submit" class="btn-primary" id="submit-btn">${isEdit?'Save Changes':'Add Record'}</button>
+      </div>
+    </form>`;
+  $('back-btn').addEventListener('click',()=>history.back());
+  $('cancel-btn').addEventListener('click',()=>go('transportation'));
+  $('tf-form').addEventListener('submit', async e=>{
+    e.preventDefault();
+    const btn=$('submit-btn'),err=$('form-error');
+    btn.textContent=isEdit?'Saving…':'Adding…'; btn.disabled=true; err.classList.add('hidden');
+    try {
+      if (!await ensureToken()) throw new Error('Session expired');
+      const data={};
+      TRANSPORT_COLS.forEach(([k])=>{ const inp=document.getElementById(`tf-${k}`); if(inp) data[k]=inp.value; });
+      if (isEdit) {
+        await fsPatch('transport',id,data);
+        const idx=S.cache.transport.findIndex(r=>r.id===id);
+        if (idx>-1) S.cache.transport[idx]={...S.cache.transport[idx],...data};
+      } else {
+        const doc=await fsAdd('transport',data);
+        S.cache.transport.unshift(doc);
+      }
+      saveS(); go('transportation');
+    } catch(ex) { err.textContent=ex.message||'Failed to save.'; err.classList.remove('hidden'); btn.textContent=isEdit?'Save Changes':'Add Record'; btn.disabled=false; }
   });
 }
 
