@@ -836,21 +836,16 @@ function pageBuying(el) {
       </div>
     </div>
     <div class="matrix-wrap">
-      ${matrixCard('Buyer Summary',     byBuyer, 'var(--accent)')}
-      ${matrixCard('Floor Plan Summary',byFloor, 'var(--success)')}
-      ${matrixCard('Source Summary',    bySrc,   'var(--purple)')}
-    </div>
-    <div class="matrix-card" style="margin-bottom:1.75rem;">
-      <div class="matrix-title">📈 Avg Cargurus Margin — by Buyer</div>
-      ${!buyerRows.length ? '<p style="font-size:.8rem;color:var(--text3);">No data yet.</p>' : `
-      <div style="overflow-x:auto;">
+      <div class="matrix-card">
+        <div class="matrix-title">👤 Buyer Summary</div>
+        ${!buyerRows.length ? '<p style="font-size:.8rem;color:var(--text3);">No data yet.</p>' : `
         <table style="width:100%;border-collapse:collapse;font-size:.8rem;">
           <thead>
             <tr style="border-bottom:1px solid var(--border2);">
-              <th style="text-align:left;padding:.4rem .6rem;color:var(--text3);font-weight:700;font-size:.65rem;text-transform:uppercase;letter-spacing:.06em;">Buyer</th>
-              <th style="text-align:center;padding:.4rem .6rem;color:var(--text3);font-weight:700;font-size:.65rem;text-transform:uppercase;letter-spacing:.06em;">Cars</th>
-              <th style="text-align:right;padding:.4rem .6rem;color:var(--text3);font-weight:700;font-size:.65rem;text-transform:uppercase;letter-spacing:.06em;">Avg Cargurus</th>
-              <th style="padding:.4rem .6rem;width:35%;"></th>
+              <th style="text-align:left;padding:.35rem .5rem;color:var(--text3);font-size:.62rem;text-transform:uppercase;letter-spacing:.06em;">Buyer</th>
+              <th style="text-align:center;padding:.35rem .5rem;color:var(--text3);font-size:.62rem;text-transform:uppercase;letter-spacing:.06em;">Cars</th>
+              <th style="text-align:right;padding:.35rem .5rem;color:var(--text3);font-size:.62rem;text-transform:uppercase;letter-spacing:.06em;">Avg Cargurus</th>
+              <th style="width:30%;"></th>
             </tr>
           </thead>
           <tbody>
@@ -859,19 +854,21 @@ function pageBuying(el) {
               const pct = maxCg > 0 ? (avg / maxCg * 100).toFixed(1) : 0;
               const color = avg >= 2000 ? 'var(--success)' : avg >= 1000 ? 'var(--accent2)' : 'var(--warning)';
               return `<tr style="border-bottom:1px solid var(--border);">
-                <td style="padding:.45rem .6rem;font-weight:600;color:var(--text);">${esc(name)}</td>
-                <td style="padding:.45rem .6rem;text-align:center;color:var(--text2);">${v.count}</td>
-                <td style="padding:.45rem .6rem;text-align:right;font-weight:700;color:${color};">${avg ? fmt$(avg) : '—'}</td>
-                <td style="padding:.45rem .6rem;">
-                  <div style="height:6px;background:var(--border2);border-radius:3px;overflow:hidden;">
+                <td style="padding:.4rem .5rem;font-weight:600;color:var(--text);">${esc(name)}</td>
+                <td style="padding:.4rem .5rem;text-align:center;color:var(--text2);">${v.count}</td>
+                <td style="padding:.4rem .5rem;text-align:right;font-weight:700;color:${color};">${avg ? fmt$(avg) : '—'}</td>
+                <td style="padding:.4rem .5rem;">
+                  <div style="height:5px;background:var(--border2);border-radius:3px;overflow:hidden;">
                     <div style="height:100%;width:${pct}%;background:${color};border-radius:3px;transition:width .4s;"></div>
                   </div>
                 </td>
               </tr>`;
             }).join('')}
           </tbody>
-        </table>
-      </div>`}
+        </table>`}
+      </div>
+      ${matrixCard('Floor Plan Summary',byFloor, 'var(--success)')}
+      ${matrixCard('Source Summary',    bySrc,   'var(--purple)')}
     </div>
     <div class="buying-wrap">
       <table class="buying-table">
